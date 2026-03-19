@@ -146,7 +146,7 @@ select option{background:var(--surface2)}
 <!-- BROWSE -->
 <div class="panel active" id="panel-browse">
   <div class="stat-row">
-    <div class="stat"><div class="stat-label">Total Products</div><div class="stat-val" id="s-total">—</div></div>
+    <div class="stat"><div class="stat-label">Loaded Products</div><div class="stat-val" id="s-total">0</div></div>
     <div class="stat"><div class="stat-label">JHB In Stock</div><div class="stat-val" style="color:var(--accent2)" id="s-instock">—</div></div>
     <div class="stat"><div class="stat-label">Out of Stock</div><div class="stat-val" style="color:var(--accent3)" id="s-oos">—</div></div>
     <div class="stat"><div class="stat-label">On Promo</div><div class="stat-val" style="color:var(--accent)" id="s-promo">—</div></div>
@@ -154,19 +154,37 @@ select option{background:var(--surface2)}
     <div class="stat"><div class="stat-label">Selected</div><div class="stat-val" style="color:var(--accent)" id="s-selected">0</div></div>
   </div>
 
-  <div style="margin-bottom:12px">
-    <div class="flabel">Quick Filter by Brand — click to select all from that brand</div>
+  <!-- SKU / NAME LOOKUP -->
+  <div style="background:var(--surface);border:1px solid var(--accent);padding:20px;margin-bottom:16px">
+    <div class="flabel" style="margin-bottom:10px;color:var(--accent)">🔍 Find Products by SKU or Name</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:200px">
+        <input type="text" id="skuLookup" placeholder="Type SKU (e.g. TUF-GAMING-1000G) or product name..." onkeydown="if(event.key==='Enter')lookupProduct()">
+      </div>
+      <button class="btn btn-primary" onclick="lookupProduct()" id="lookupBtn">Search Feed</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadFeedPage()" id="loadPageBtn" title="Load next 200 products from feed">Load Next 200</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearLoaded()">Clear Results</button>
+    </div>
+    <div id="lookupStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:8px"></div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;line-height:1.8">
+      Enter a SKU or partial name → click Search Feed → product loads instantly from Syntech.<br>
+      Or click <strong style="color:var(--text)">Load Next 200</strong> to browse a batch of products.
+    </div>
+  </div>
+
+  <div style="margin-bottom:12px;display:none" id="brandPillsWrap">
+    <div class="flabel">Filter by Brand</div>
     <div class="pill-grid" id="brandPills"></div>
   </div>
-  <div style="margin-bottom:16px">
-    <div class="flabel">Quick Filter by Category</div>
+  <div style="margin-bottom:16px;display:none" id="catPillsWrap">
+    <div class="flabel">Filter by Category</div>
     <div class="pill-grid" id="catPills"></div>
   </div>
 
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
     <div style="flex:1;min-width:180px;max-width:300px">
-      <div class="flabel">Search</div>
-      <input type="text" id="searchInput" placeholder="Name, SKU, brand..." oninput="filterProducts()">
+      <div class="flabel">Filter loaded results</div>
+      <input type="text" id="searchInput" placeholder="Filter by name, SKU, brand..." oninput="filterProducts()">
     </div>
     <div style="min-width:140px;max-width:180px">
       <div class="flabel">Stock</div>
@@ -207,7 +225,7 @@ select option{background:var(--surface2)}
   </div>
 
   <div class="pgrid" id="productGrid">
-    <div class="empty"><div class="empty-icon">📡</div><div class="empty-text">Loading Syntech feed...</div></div>
+    <div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Search for a product by SKU or name above.<br>Or click "Load Next 200" to browse a batch.</div></div>
   </div>
   <div id="loadMoreWrap" style="text-align:center;padding:20px;display:none">
     <button class="btn btn-ghost" onclick="loadMore()">Load More</button>
@@ -376,7 +394,91 @@ async function callRelay(action, payload={}){
   return data.data;
 }
 
-window.addEventListener('load',()=>{ loadSettings(); renderWatch(); renderQueue(); loadFeed(); });
+window.addEventListener('load',()=>{ loadSettings(); renderWatch(); renderQueue(); document.getElementById('feedStatusText').textContent='Ready'; });
+
+let currentFeedPage=0, totalFeedPages=999;
+
+async function lookupProduct(){
+  const q = document.getElementById('skuLookup').value.trim();
+  if(!q){ alert('Enter a SKU or product name first.'); return; }
+  const btn = document.getElementById('lookupBtn');
+  const status = document.getElementById('lookupStatus');
+  btn.disabled=true; btn.textContent='Searching...';
+  status.textContent='Searching Syntech feed... (this takes ~5 seconds)';
+  status.style.color='var(--muted2)';
+  try{
+    const data = await callRelay('searchFeed', { query: q });
+    if(!data.xml || data.total===0){
+      status.textContent='No products found for "'+q+'". Try a different SKU or name.';
+      status.style.color='var(--accent3)';
+    } else {
+      // Parse the returned XML
+      const doc=new DOMParser().parseFromString(data.xml,'text/xml');
+      let added=0;
+      doc.querySelectorAll('product').forEach(p=>{
+        const prod=parseProduct(p);
+        if(!allProducts.find(x=>x.sku===prod.sku)){ allProducts.push(prod); added++; }
+      });
+      filteredProducts=[...allProducts];
+      updateStats(); buildBrandPills(); buildCatPills();
+      document.getElementById('brandPillsWrap').style.display='block';
+      document.getElementById('catPillsWrap').style.display='block';
+      filterProducts();
+      document.getElementById('feedStatusText').textContent='Syntech Feed Active';
+      status.textContent='✓ Found '+added+' product'+(added!==1?'s':'')+' · '+allProducts.length+' total loaded';
+      status.style.color='var(--accent2)';
+    }
+  }catch(e){
+    status.textContent='Error: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+  btn.disabled=false; btn.textContent='Search Feed';
+}
+
+// LOAD a page of 200 products
+async function loadFeedPage(){
+  const btn=document.getElementById('loadPageBtn');
+  const status=document.getElementById('lookupStatus');
+  if(currentFeedPage>=totalFeedPages){ status.textContent='All products loaded.'; return; }
+  btn.disabled=true; btn.textContent='Loading...';
+  status.textContent='Loading products '+(currentFeedPage*200+1)+'–'+((currentFeedPage+1)*200)+'...';
+  status.style.color='var(--muted2)';
+  try{
+    const data = await callRelay('fetchFeed', { page: currentFeedPage, pageSize: 200 });
+    totalFeedPages=data.totalPages;
+    // Parse XML and merge
+    const doc=new DOMParser().parseFromString(data.xml,'text/xml');
+    let added=0;
+    doc.querySelectorAll('product').forEach(p=>{
+      const prod=parseProduct(p);
+      if(!allProducts.find(x=>x.sku===prod.sku)){ allProducts.push(prod); added++; }
+    });
+    currentFeedPage++;
+    filteredProducts=[...allProducts];
+    updateStats(); buildBrandPills(); buildCatPills();
+    document.getElementById('brandPillsWrap').style.display='block';
+    document.getElementById('catPillsWrap').style.display='block';
+    filterProducts();
+    document.getElementById('feedStatusText').textContent='Syntech Feed Active';
+    status.textContent=`✓ Loaded ${added} products · ${allProducts.length} total · Page ${currentFeedPage}/${totalFeedPages}`;
+    status.style.color='var(--accent2)';
+    btn.textContent=currentFeedPage>=totalFeedPages?'All Loaded':'Load Next 200';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+    status.style.color='var(--accent3)';
+    btn.textContent='Load Next 200';
+  }
+  btn.disabled=false;
+}
+
+function clearLoaded(){
+  allProducts=[]; filteredProducts=[]; currentFeedPage=0;
+  updateStats(); renderProducts();
+  document.getElementById('brandPillsWrap').style.display='none';
+  document.getElementById('catPillsWrap').style.display='none';
+  document.getElementById('lookupStatus').textContent='';
+  document.getElementById('feedStatusText').textContent='Ready';
+}
 
 function loadSettings(){
   if(settings.wixApiKey) document.getElementById('wixApiKey').value=settings.wixApiKey;
@@ -466,6 +568,24 @@ async function loadFeed(){
       document.getElementById('productGrid').innerHTML=`<div class="empty"><div class="empty-icon">⚠</div><div class="empty-text">Could not load feed.<br>${e.message}<br><br>Check relay URL in Publish tab.</div></div>`;
     }
   }
+}
+
+function parseProduct(p){
+  const g=t=>p.querySelector(t)?.textContent?.trim()||'';
+  const n=t=>parseFloat(g(t))||0;
+  return {
+    sku:g('sku'),name:g('name')||g('n'),price:n('price'),rrp:n('rrp_incl'),
+    margin:n('recommended_margin'),promo:g('promo_price'),promoEnds:g('promo_ends'),
+    cpt:n('cptstock'),jhb:n('jhbstock'),dbn:n('dbnstock'),eta:g('nextshipmenteta'),
+    url:g('url'),desc:g('description'),shortDesc:g('shortdesc'),
+    image:g('featured_image'),images:[...p.querySelectorAll('additional_image')].map(i=>i.textContent.trim()),
+    categories:g('categories'),catTree:g('categorytree'),
+    brand:p.querySelector('brand')?.textContent?.trim()||'',
+    warranty:p.querySelector('warranty')?.textContent?.trim()||'',
+    ean:p.querySelector('ean')?.textContent?.trim()||'',
+    colour:p.querySelector('colour')?.textContent?.trim()||'',
+    modified:g('last_modified')
+  };
 }
 
 function parseXML(xml){
