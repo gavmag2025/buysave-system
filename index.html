@@ -1314,8 +1314,10 @@ async function tagProduct(id, tag){
   status.textContent=tag ? `Tagging product as ${tag}...` : 'Clearing tag...';
   try{
     const ribbons = tag ? [{text:tag.charAt(0).toUpperCase()+tag.slice(1)}] : [];
-    await callRelay('updateProduct',{ productId:id, product:{ ribbons } });
+    // Pass existing info sections so relay can preserve them
     const p=wixProducts.find(x=>x.id===id);
+    const existingInfoSections = p?.additionalInfoSections || [];
+    await callRelay('updateProduct',{ productId:id, product:{ ribbons, existingInfoSections } });
     if(p){ p.ribbons=ribbons; }
     status.textContent=tag ? `✓ Tagged as ${tag}` : '✓ Tag cleared';
     status.style.color='var(--accent2)';
