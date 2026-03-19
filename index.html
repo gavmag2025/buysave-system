@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BuySave Product Intelligence System v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e13;--surface:#111520;--surface2:#161c2a;--surface3:#1c2436;
+  --border:#1e2a3f;--border2:#253048;
+  --accent:#f5a623;--accent2:#00e5b0;--accent3:#ff4d6d;--accent4:#4d9fff;--accent5:#b97fff;
+  --text:#dce6f5;--muted:#5a6a85;--muted2:#7a8da8;
+  --mono:'JetBrains Mono',monospace;--cond:'Barlow Condensed',sans-serif;--body:'Barlow',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh;overflow-x:hidden}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px);pointer-events:none;z-index:9999}
+.topbar{background:var(--surface);border-bottom:2px solid var(--accent);padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:12px}
+.logo{font-family:var(--cond);font-size:22px;font-weight:800;letter-spacing:.05em;color:var(--accent);white-space:nowrap}
+.logo span{color:var(--text)}
+.sys-badge{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--muted2);background:var(--surface2);border:1px solid var(--border2);padding:3px 10px;white-space:nowrap}
+.topbar-right{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.live-badge{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--accent2);letter-spacing:.1em;white-space:nowrap}
+.pulse{width:6px;height:6px;background:var(--accent2);border-radius:50%;animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,229,176,.4)}50%{opacity:.6;box-shadow:0 0 0 6px rgba(0,229,176,0)}}
+#feedTime{font-family:var(--mono);font-size:9px;color:var(--muted);white-space:nowrap}
+.tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 24px;gap:2px;overflow-x:auto}
+.tabs::-webkit-scrollbar{height:2px}.tabs::-webkit-scrollbar-thumb{background:var(--border2)}
+.tab{font-family:var(--cond);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:14px 18px;color:var(--muted2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--text)}.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-count{background:var(--accent);color:#000;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:2px;margin-left:5px;font-weight:700}
+.tab-count.g{background:var(--accent2);color:#000}.tab-count.r{background:var(--accent3)}.tab-count.b{background:var(--accent4);color:#000}
+.panel{display:none;padding:24px;max-width:1800px;margin:0 auto}.panel.active{display:block}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:2px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--border);padding:14px 18px}
+.stat-label{font-family:var(--mono);font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.stat-val{font-family:var(--cond);font-size:26px;font-weight:700;line-height:1}
+.stat-sub{font-family:var(--mono);font-size:8px;color:var(--muted2);margin-top:3px}
+.btn{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:8px 16px;border:none;cursor:pointer;transition:all .15s;text-transform:uppercase;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#000}.btn-primary:hover:not(:disabled){background:#ffbe55}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--muted2)}.btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.btn-success{background:var(--accent2);color:#000}.btn-success:hover:not(:disabled){background:#00ffcc}
+.btn-wix{background:#116dff;color:#fff}.btn-wix:hover:not(:disabled){background:#2b80ff}
+.btn-danger{background:var(--accent3);color:#fff}
+.btn-sm{padding:5px 11px;font-size:10px}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--body);font-size:13px;padding:8px 12px;outline:none;transition:border .15s;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input::placeholder{color:var(--muted)}
+select option{background:var(--surface2)}
+.shdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.stitle{font-family:var(--cond);font-size:15px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2)}
+.stitle span{color:var(--text)}
+.flabel{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:5px}
+.bulk-bar{background:var(--surface3);border:1px solid var(--accent);padding:12px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.bulk-info{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.08em}
+.bulk-actions{display:flex;gap:8px;flex-wrap:wrap}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:2px}
+.pcard{background:var(--surface);border:1px solid var(--border);overflow:hidden;transition:border-color .15s;position:relative;cursor:pointer}
+.pcard:hover{border-color:var(--border2)}.pcard.sel{border-color:var(--accent);background:rgba(245,166,35,.04)}
+.pcard.watching{border-top:3px solid var(--accent4)}
+.pcard-sel-box{position:absolute;top:8px;right:8px;width:20px;height:20px;border:1px solid var(--border2);background:rgba(11,14,19,.8);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--accent);z-index:2;transition:all .15s;font-weight:700}
+.pcard.sel .pcard-sel-box{background:var(--accent);border-color:var(--accent);color:#000}
+.pcard-img{width:100%;height:140px;object-fit:contain;background:var(--surface2);padding:10px;display:block}
+.pcard-img-ph{width:100%;height:140px;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-family:var(--mono);font-size:10px}
+.pcard-body{padding:12px}
+.pcard-sku{font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:5px}
+.pcard-name{font-family:var(--cond);font-size:14px;font-weight:700;line-height:1.3;margin-bottom:10px}
+.stock-row{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px}
+.schip{font-family:var(--mono);font-size:8px;padding:2px 6px;border:1px solid var(--border2);color:var(--muted2)}
+.schip.g{border-color:var(--accent2);color:var(--accent2)}.schip.r{border-color:var(--accent3);color:var(--accent3)}.schip.y{border-color:var(--accent);color:var(--accent)}
+.price-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-bottom:10px}
+.pi{background:var(--surface2);padding:7px 8px}
+.pi-l{font-family:var(--mono);font-size:7px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.pi-v{font-family:var(--cond);font-size:15px;font-weight:700}
+.pi-v.cost{color:var(--muted2)}.pi-v.rrp{color:var(--accent)}.pi-v.yours{color:var(--accent2)}
+.pcard-actions{display:flex;gap:4px;flex-wrap:wrap;padding:0 12px 12px}
+.pill-grid{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px}
+.pill{font-family:var(--mono);font-size:9px;padding:4px 10px;border:1px solid var(--border2);color:var(--muted2);cursor:pointer;transition:all .15s;letter-spacing:.04em}
+.pill:hover{border-color:var(--accent4);color:var(--accent4)}
+.pill.active{border-color:var(--accent);color:var(--accent);background:rgba(245,166,35,.08)}
+.pill.ba{border-color:var(--accent5);color:var(--accent5);background:rgba(185,127,255,.08)}
+.wtable{width:100%;border-collapse:collapse;font-size:12px}
+.wtable th{font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface);white-space:nowrap}
+.wtable td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.wtable tr:hover td{background:var(--surface2)}
+.sdot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+.sdot.g{background:var(--accent2)}.sdot.y{background:var(--accent)}.sdot.r{background:var(--accent3)}
+.chg-up{color:var(--accent3);font-family:var(--mono);font-size:10px}
+.chg-dn{color:var(--accent2);font-family:var(--mono);font-size:10px}
+.chg-nil{color:var(--muted);font-family:var(--mono);font-size:10px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal{background:var(--surface);border:1px solid var(--border2);max-width:700px;width:100%;max-height:88vh;overflow-y:auto;padding:28px}
+.modal::-webkit-scrollbar{width:4px}.modal::-webkit-scrollbar-thumb{background:var(--border2)}
+.modal-title{font-family:var(--cond);font-size:22px;font-weight:800;margin-bottom:4px}
+.modal-sub{font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:22px}
+.mfield{margin-bottom:14px}
+.mfield label{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+.mfield-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mplist{max-height:180px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);padding:10px}
+.mplist::-webkit-scrollbar{width:4px}.mplist::-webkit-scrollbar-thumb{background:var(--border2)}
+.mpitem{font-family:var(--mono);font-size:10px;color:var(--muted2);padding:4px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+.mpitem:last-child{border-bottom:none}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--border);margin-top:16px}
+.prog-wrap{background:var(--surface2);border:1px solid var(--border);height:5px;border-radius:2px;overflow:hidden;margin-top:10px}
+.prog-fill{height:100%;background:var(--accent2);border-radius:2px;transition:width .3s}
+.prog-text{font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:5px}
+.log-panel{background:var(--bg);border:1px solid var(--border);padding:12px;font-family:var(--mono);font-size:10px;max-height:180px;overflow-y:auto;margin-top:12px}
+.log-panel::-webkit-scrollbar{width:4px}.log-panel::-webkit-scrollbar-thumb{background:var(--border2)}
+.ll{padding:2px 0;color:var(--muted2);line-height:1.5}.ll.ok{color:var(--accent2)}.ll.err{color:var(--accent3)}.ll.warn{color:var(--accent)}
+.empty{text-align:center;padding:50px 24px;color:var(--muted)}
+.empty-icon{font-size:42px;margin-bottom:12px;opacity:.4}
+.empty-text{font-family:var(--mono);font-size:11px;letter-spacing:.06em;line-height:1.8}
+.acard{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent3);padding:13px 17px;margin-bottom:6px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.acard.warn{border-left-color:var(--accent)}.acard.info{border-left-color:var(--accent4)}
+.acard-type{font-family:var(--mono);font-size:8px;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px}
+.acard-msg{font-size:13px;line-height:1.5}
+.acard-meta{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--border2)}
+@media(max-width:640px){.topbar{padding:0 12px}.panel{padding:12px}.pgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:14px;min-width:0">
+    <div class="logo">Buy<span>Save</span></div>
+    <div class="sys-badge">Product Intelligence v2</div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><span class="pulse"></span><span id="feedStatusText">Loading...</span></div>
+    <div id="feedTime"></div>
+    <button class="btn btn-ghost btn-sm" onclick="loadFeed()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('browse')">📦 Browse &amp; Select <span class="tab-count g" id="tc-browse">—</span></div>
+  <div class="tab" onclick="switchTab('watchlist')">👁 Watchlist <span class="tab-count b" id="tc-watch">0</span></div>
+  <div class="tab" onclick="switchTab('alerts')">🚨 Alerts <span class="tab-count r" id="tc-alerts">0</span></div>
+  <div class="tab" onclick="switchTab('publish')">🚀 Publish to Wix</div>
+  <div class="tab" onclick="switchTab('settings')">⚙ Settings</div>
+</div>
+
+<!-- BROWSE -->
+<div class="panel active" id="panel-browse">
+  <div class="stat-row">
+    <div class="stat"><div class="stat-label">Total Products</div><div class="stat-val" id="s-total">—</div></div>
+    <div class="stat"><div class="stat-label">JHB In Stock</div><div class="stat-val" style="color:var(--accent2)" id="s-instock">—</div></div>
+    <div class="stat"><div class="stat-label">Out of Stock</div><div class="stat-val" style="color:var(--accent3)" id="s-oos">—</div></div>
+    <div class="stat"><div class="stat-label">On Promo</div><div class="stat-val" style="color:var(--accent)" id="s-promo">—</div></div>
+    <div class="stat"><div class="stat-label">Watching</div><div class="stat-val" style="color:var(--accent4)" id="s-watching">0</div></div>
+    <div class="stat"><div class="stat-label">Selected</div><div class="stat-val" style="color:var(--accent)" id="s-selected">0</div></div>
+  </div>
+
+  <div style="margin-bottom:12px">
+    <div class="flabel">Quick Filter by Brand — click to select all from that brand</div>
+    <div class="pill-grid" id="brandPills"></div>
+  </div>
+  <div style="margin-bottom:16px">
+    <div class="flabel">Quick Filter by Category</div>
+    <div class="pill-grid" id="catPills"></div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:1;min-width:180px;max-width:300px">
+      <div class="flabel">Search</div>
+      <input type="text" id="searchInput" placeholder="Name, SKU, brand..." oninput="filterProducts()">
+    </div>
+    <div style="min-width:140px;max-width:180px">
+      <div class="flabel">Stock</div>
+      <select id="stockFilter" onchange="filterProducts()">
+        <option value="">All Stock</option>
+        <option value="instock">JHB In Stock</option>
+        <option value="oos">Out of Stock</option>
+        <option value="low">Low (1-3)</option>
+      </select>
+    </div>
+    <div style="min-width:150px;max-width:190px">
+      <div class="flabel">Sort</div>
+      <select id="sortFilter" onchange="filterProducts()">
+        <option value="name">Name A-Z</option>
+        <option value="price_asc">Price Low-High</option>
+        <option value="price_desc">Price High-Low</option>
+        <option value="margin">Best Margin</option>
+        <option value="stock">Most Stock</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="clearFilters()">Clear Filters</button>
+      <button class="btn btn-ghost btn-sm" onclick="selectAllVisible()">Select All Visible</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Deselect All</button>
+    </div>
+  </div>
+
+  <div id="resultsInfo" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:10px"></div>
+
+  <div class="bulk-bar" id="bulkBar" style="display:none">
+    <div class="bulk-info" id="bulkInfo">0 selected</div>
+    <div class="bulk-actions">
+      <button class="btn btn-wix btn-sm" onclick="openPublishModal()">🚀 Publish to Wix</button>
+      <button class="btn btn-success btn-sm" onclick="bulkWatch()">👁 Add to Watchlist</button>
+      <button class="btn btn-primary btn-sm" onclick="exportSel()">⬇ Export CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕ Clear</button>
+    </div>
+  </div>
+
+  <div class="pgrid" id="productGrid">
+    <div class="empty"><div class="empty-icon">📡</div><div class="empty-text">Loading Syntech feed...</div></div>
+  </div>
+  <div id="loadMoreWrap" style="text-align:center;padding:20px;display:none">
+    <button class="btn btn-ghost" onclick="loadMore()">Load More</button>
+  </div>
+</div>
+
+<!-- WATCHLIST -->
+<div class="panel" id="panel-watchlist">
+  <div class="shdr">
+    <div class="stitle">Live <span>Watchlist</span> — Price &amp; Stock Monitor</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="syncWatch()">↻ Sync Now</button>
+      <button class="btn btn-danger btn-sm" onclick="clearWatch()">Clear All</button>
+    </div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);padding:12px 16px;font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9;margin-bottom:18px">
+    Every product here is compared to the live Syntech feed on each refresh. Price increases or decreases by more than 5% trigger an alert. Stock drops to 0 or below threshold are flagged immediately. Green border = watching.
+  </div>
+  <div id="watchEmpty" class="empty"><div class="empty-icon">👁</div><div class="empty-text">Nothing on watchlist yet.<br>Browse products and click Watch or select many and click Add to Watchlist.</div></div>
+  <div style="overflow-x:auto">
+    <table class="wtable" id="watchTable" style="display:none">
+      <thead><tr><th>Product</th><th>SKU</th><th>Your Price</th><th>Feed Cost</th><th>JHB</th><th>CPT</th><th>DBN</th><th>Cost Change</th><th>Stock Change</th><th>Status</th><th>Synced</th><th></th></tr></thead>
+      <tbody id="watchBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ALERTS -->
+<div class="panel" id="panel-alerts">
+  <div class="shdr">
+    <div class="stitle">Stock &amp; Price <span>Alerts</span></div>
+    <button class="btn btn-ghost btn-sm" onclick="buildAlerts()">↻ Refresh</button>
+  </div>
+  <div id="alertsContainer"><div class="empty"><div class="empty-icon">🚨</div><div class="empty-text">Load feed first.</div></div></div>
+</div>
+
+<!-- PUBLISH -->
+<div class="panel" id="panel-publish">
+  <div class="shdr"><div class="stitle">Publish to <span>Wix (buysave.co.za)</span></div></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-bottom:24px">
+    <div style="background:var(--surface);border:1px solid var(--border);padding:20px">
+      <div class="flabel" style="margin-bottom:12px">Google Apps Script Relay</div>
+      <div class="mfield"><label>Relay URL (your deployed Apps Script)</label>
+        <input type="text" id="relayUrl" placeholder="https://script.google.com/macros/s/..." value="https://script.google.com/macros/s/AKfycbzQcozK5DrgBpU0FzHprdOs4gAcx_M4vlAUPk7mEOlHFN85iTd1-bW4WDfMadK6xzYfzA/exec">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-wix btn-sm" onclick="testWix()">Test Connection</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveWix()">Save</button>
+      </div>
+      <div id="wixStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)"></div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);padding:20px">
+      <div class="flabel" style="margin-bottom:10px">How it works</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:2.1">
+        Your <strong style="color:var(--accent2)">Google Apps Script relay</strong> is already deployed<br>
+        and holds your Wix API key securely.<br><br>
+        This tool sends product data to the relay →<br>
+        The relay calls Wix from Google's servers →<br>
+        Product appears on <strong style="color:var(--text)">buysave.co.za</strong> instantly.<br><br>
+        <span style="color:var(--accent)">⚠ If you regenerate your Wix API key,<br>update it in the Apps Script file and redeploy.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="shdr"><div class="stitle">Published <span>Products</span></div></div>
+  <div id="queueEmpty" class="empty" style="padding:30px"><div class="empty-icon">🚀</div><div class="empty-text">Select products in Browse and click Publish to Wix.</div></div>
+  <div id="queueTable"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="panel" id="panel-settings">
+  <div class="shdr"><div class="stitle">System <span>Settings</span></div></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:2px">
+    <div style="background:var(--surface);border:1px solid var(--border);padding:20px">
+      <div class="flabel" style="margin-bottom:12px">Pricing Rules</div>
+      <div class="mfield"><label>Default Markup % on cost excl VAT</label><input type="number" id="defaultMarkup" value="30" min="5" max="300" oninput="renderProducts()"></div>
+      <div class="mfield"><label>VAT Rate %</label><input type="number" id="vatRate" value="15" min="0" max="30"></div>
+      <div class="mfield"><label>Stock Alert Threshold (JHB units)</label><input type="number" id="stockThreshold" value="3" min="1" max="20"></div>
+      <div class="mfield"><label>Price change alert threshold %</label><input type="number" id="priceAlertPct" value="5" min="1" max="50"></div>
+      <div class="mfield"><label>Amazon.co.za Fee %</label><input type="number" id="amazonFee" value="5"></div>
+      <button class="btn btn-success btn-sm" onclick="saveSettings()">Save Settings</button>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);padding:20px">
+      <div class="flabel" style="margin-bottom:12px">Supplier Feeds</div>
+      <div class="mfield"><label>Syntech Feed URL (active)</label><input type="text" id="feedUrl" value="https://www.syntech.co.za/feeds/feedhandler.php?key=81A68DC1-B1E6-424C-8E67-A11C712D2EED&feed=syntech-xml-full"></div>
+      <div class="mfield"><label>Pinnacle Feed URL</label><input type="text" id="pinnacleUrl" placeholder="Paste your Pinnacle XML URL"></div>
+      <div class="mfield"><label>Esquire Feed URL</label><input type="text" id="esquireUrl" placeholder="Request from Esquire account manager"></div>
+      <button class="btn btn-primary btn-sm" onclick="loadFeed()">Reload Feeds</button>
+    </div>
+  </div>
+</div>
+
+<!-- PUBLISH MODAL -->
+<div class="modal-overlay" id="publishModal" style="display:none" onclick="if(event.target===this&&!isPublishing)closeModal()">
+<div class="modal">
+  <div class="modal-title">Publish to buysave.co.za</div>
+  <div class="modal-sub" id="modalSub">Review settings before publishing</div>
+
+  <div class="mfield"><label>Products (<span id="modalCount">0</span>)</label><div class="mplist" id="modalList"></div></div>
+  <div class="mfield-row">
+    <div class="mfield"><label>Your Markup %</label><input type="number" id="modalMarkup" value="30" min="5" max="300" oninput="updateModalPrices()"></div>
+    <div class="mfield"><label>Wix Collection (optional)</label><input type="text" id="modalCollection" placeholder="e.g. Mini PCs, Laptops"></div>
+  </div>
+  <div class="mfield"><label>SEO Copy Generation</label>
+    <select id="modalSeo">
+      <option value="auto">Auto-generate with Claude API (recommended)</option>
+      <option value="basic">Use supplier description as-is (faster)</option>
+    </select>
+  </div>
+  <div class="mfield"><label>Stock on Wix</label>
+    <select id="modalStock">
+      <option value="live">Use live JHB stock from Syntech feed</option>
+      <option value="instock">Set as always in stock (manage manually)</option>
+    </select>
+  </div>
+  <div class="mfield"><label>After Publishing</label>
+    <select id="modalAfter">
+      <option value="watch">Add to Watchlist (monitor price + stock)</option>
+      <option value="none">Publish only</option>
+    </select>
+  </div>
+  <div class="mfield"><label>Extra context for SEO (optional)</label><textarea id="modalCtx" rows="2" placeholder="e.g. load shedding ready, home office, university student budget..."></textarea></div>
+
+  <div id="publishProg" style="display:none">
+    <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    <div class="prog-text" id="progText">Ready</div>
+    <div class="log-panel" id="pubLog"></div>
+  </div>
+
+  <div class="modal-actions">
+    <button class="btn btn-ghost" id="cancelBtn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-wix" id="publishBtn" onclick="startPublish()">🚀 Publish <span id="pubCount">0</span> Products</button>
+  </div>
+</div>
+</div>
+
+<script>
+let allProducts=[], filteredProducts=[], visibleCount=60;
+let selectedSKUs=new Set();
+let watchlist=JSON.parse(localStorage.getItem('bs_wl')||'[]');
+let published=JSON.parse(localStorage.getItem('bs_pub')||'[]');
+let settings=JSON.parse(localStorage.getItem('bs_cfg')||'{}');
+let activeBrands=new Set(), activeCats=new Set();
+let isPublishing=false;
+
+const FEED='https://www.syntech.co.za/feeds/feedhandler.php?key=81A68DC1-B1E6-424C-8E67-A11C712D2EED&feed=syntech-xml-full';
+const PROXIES=[
+  'https://corsproxy.io/?',
+  'https://api.allorigins.win/raw?url=',
+  'https://thingproxy.freeboard.io/fetch/',
+  ''
+];
+const DEFAULT_RELAY='https://script.google.com/macros/s/AKfycbzQcozK5DrgBpU0FzHprdOs4gAcx_M4vlAUPk7mEOlHFN85iTd1-bW4WDfMadK6xzYfzA/exec';
+
+function getRelay(){ return document.getElementById('relayUrl')?.value?.trim() || settings.relayUrl || DEFAULT_RELAY; }
+
+async function callRelay(action, payload={}){
+  const relay = getRelay();
+  const res = await fetch(relay, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({action, ...payload})
+  });
+  const data = await res.json();
+  if(!data.success) throw new Error(data.error || 'Relay error');
+  return data.data;
+}
+
+window.addEventListener('load',()=>{ loadSettings(); renderWatch(); renderQueue(); loadFeed(); });
+
+function loadSettings(){
+  if(settings.wixApiKey) document.getElementById('wixApiKey').value=settings.wixApiKey;
+  if(settings.wixSiteId) document.getElementById('wixSiteId').value=settings.wixSiteId;
+  if(settings.defaultMarkup) document.getElementById('defaultMarkup').value=settings.defaultMarkup;
+}
+
+function saveSettings(){ settings.defaultMarkup=document.getElementById('defaultMarkup').value; localStorage.setItem('bs_cfg',JSON.stringify(settings)); alert('Saved.'); }
+function saveWix(){ settings.wixApiKey=document.getElementById('wixApiKey').value; settings.wixSiteId=document.getElementById('wixSiteId').value; localStorage.setItem('bs_cfg',JSON.stringify(settings)); document.getElementById('wixStatus').textContent='Saved.'; document.getElementById('wixStatus').style.color='var(--accent2)'; }
+
+function switchTab(id){
+  const tabs=['browse','watchlist','alerts','publish','settings'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===id));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  if(id==='alerts'&&allProducts.length) buildAlerts();
+  if(id==='watchlist') renderWatch();
+  if(id==='publish') renderQueue();
+}
+
+async function loadFeed(){
+  document.getElementById('feedStatusText').textContent='Syncing...';
+  let lastError='';
+  for(const proxy of PROXIES){
+    try{
+      const url = proxy ? proxy + encodeURIComponent(FEED) : FEED;
+      const r = await fetch(url, {signal: AbortSignal.timeout(10000)});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const text = await r.text();
+      if(!text.includes('<syntechstock>')) throw new Error('Invalid feed response');
+      parseXML(text);
+      document.getElementById('feedStatusText').textContent='Syntech Feed Active';
+      document.getElementById('feedTime').textContent='Synced '+new Date().toLocaleTimeString('en-ZA');
+      return;
+    }catch(e){ lastError=e.message; continue; }
+  }
+  document.getElementById('feedStatusText').textContent='Feed Error';
+  document.getElementById('productGrid').innerHTML=`<div class="empty"><div class="empty-icon">⚠</div><div class="empty-text">Could not load feed.<br>${lastError}<br><br>Try clicking Refresh.</div></div>`;
+}
+
+function parseXML(xml){
+  const doc=new DOMParser().parseFromString(xml,'text/xml');
+  allProducts=[];
+  doc.querySelectorAll('product').forEach(p=>{
+    const g=t=>p.querySelector(t)?.textContent?.trim()||'';
+    const n=t=>parseFloat(g(t))||0;
+    allProducts.push({
+      sku:g('sku'),name:g('n'),price:n('price'),rrp:n('rrp_incl'),
+      margin:n('recommended_margin'),promo:g('promo_price'),promoEnds:g('promo_ends'),
+      cpt:n('cptstock'),jhb:n('jhbstock'),dbn:n('dbnstock'),eta:g('nextshipmenteta'),
+      url:g('url'),desc:g('description'),shortDesc:g('shortdesc'),
+      image:g('featured_image'),images:[...p.querySelectorAll('additional_image')].map(i=>i.textContent.trim()),
+      categories:g('categories'),catTree:g('categorytree'),
+      brand:p.querySelector('brand')?.textContent?.trim()||'',
+      warranty:p.querySelector('warranty')?.textContent?.trim()||'',
+      ean:p.querySelector('ean')?.textContent?.trim()||'',
+      colour:p.querySelector('colour')?.textContent?.trim()||'',
+      modified:g('last_modified')
+    });
+  });
+  filteredProducts=[...allProducts];
+  updateStats(); buildBrandPills(); buildCatPills();
+  filterProducts(); buildAlerts(); syncWatch();
+  document.getElementById('tc-browse').textContent=allProducts.length;
+}
+
+function updateStats(){
+  document.getElementById('s-total').textContent=allProducts.length.toLocaleString();
+  document.getElementById('s-instock').textContent=allProducts.filter(p=>p.jhb>0).length.toLocaleString();
+  document.getElementById('s-oos').textContent=allProducts.filter(p=>p.jhb===0&&p.cpt===0&&p.dbn===0).length.toLocaleString();
+  document.getElementById('s-promo').textContent=allProducts.filter(p=>p.promo).length.toLocaleString();
+  document.getElementById('s-watching').textContent=watchlist.length;
+  document.getElementById('tc-watch').textContent=watchlist.length;
+}
+
+function buildBrandPills(){
+  const brands=[...new Set(allProducts.map(p=>p.brand).filter(Boolean))].sort();
+  document.getElementById('brandPills').innerHTML=brands.slice(0,35).map(b=>
+    `<div class="pill ${activeBrands.has(b)?'ba':''}" onclick="toggleBrand('${b.replace(/'/g,"\\'")}')">${b}</div>`
+  ).join('');
+}
+
+function buildCatPills(){
+  const cats=new Set();
+  allProducts.forEach(p=>p.categories.split(',').forEach(c=>{if(c.trim())cats.add(c.trim())}));
+  document.getElementById('catPills').innerHTML=[...cats].sort().slice(0,30).map(c=>
+    `<div class="pill ${activeCats.has(c)?'active':''}" onclick="toggleCat('${c.replace(/'/g,"\\'")}')">${c}</div>`
+  ).join('');
+}
+
+function toggleBrand(b){ if(activeBrands.has(b)) activeBrands.delete(b); else activeBrands.add(b); buildBrandPills(); filterProducts(); }
+function toggleCat(c){ if(activeCats.has(c)) activeCats.delete(c); else activeCats.add(c); buildCatPills(); filterProducts(); }
+
+function filterProducts(){
+  const q=document.getElementById('searchInput').value.toLowerCase();
+  const stock=document.getElementById('stockFilter').value;
+  const sort=document.getElementById('sortFilter').value;
+  filteredProducts=allProducts.filter(p=>{
+    if(q&&!p.name.toLowerCase().includes(q)&&!p.sku.toLowerCase().includes(q)&&!p.brand.toLowerCase().includes(q)) return false;
+    if(activeBrands.size&&!activeBrands.has(p.brand)) return false;
+    if(activeCats.size&&![...activeCats].some(c=>p.categories.includes(c))) return false;
+    if(stock==='instock'&&p.jhb<=0) return false;
+    if(stock==='oos'&&(p.jhb>0||p.cpt>0||p.dbn>0)) return false;
+    if(stock==='low'&&(p.jhb===0||p.jhb>3)) return false;
+    return true;
+  });
+  filteredProducts.sort((a,b)=>{
+    if(sort==='price_asc') return a.price-b.price;
+    if(sort==='price_desc') return b.price-a.price;
+    if(sort==='margin') return b.margin-a.margin;
+    if(sort==='stock') return b.jhb-a.jhb;
+    return a.name.localeCompare(b.name);
+  });
+  visibleCount=60;
+  document.getElementById('resultsInfo').textContent=`Showing ${Math.min(visibleCount,filteredProducts.length)} of ${filteredProducts.length} products`;
+  renderProducts();
+}
+
+function clearFilters(){ document.getElementById('searchInput').value=''; document.getElementById('stockFilter').value=''; document.getElementById('sortFilter').value='name'; activeBrands.clear(); activeCats.clear(); buildBrandPills(); buildCatPills(); filterProducts(); }
+
+function calcPrice(cost){
+  const m=parseFloat(document.getElementById('defaultMarkup').value||30);
+  const v=parseFloat(document.getElementById('vatRate')?.value||15);
+  return Math.ceil((cost*(1+v/100)*(1+m/100))/10)*10;
+}
+
+function selectAllVisible(){ filteredProducts.slice(0,visibleCount).forEach(p=>selectedSKUs.add(p.sku)); renderProducts(); updateSelUI(); }
+function clearSelection(){ selectedSKUs.clear(); renderProducts(); updateSelUI(); }
+
+function toggleSelect(sku,e){ e&&e.stopPropagation(); if(selectedSKUs.has(sku)) selectedSKUs.delete(sku); else selectedSKUs.add(sku); const c=document.getElementById('pc-'+sku); if(c){c.classList.toggle('sel',selectedSKUs.has(sku));const b=c.querySelector('.pcard-sel-box');if(b)b.textContent=selectedSKUs.has(sku)?'✓':''} updateSelUI(); }
+
+function updateSelUI(){
+  const n=selectedSKUs.size;
+  document.getElementById('s-selected').textContent=n;
+  document.getElementById('bulkBar').style.display=n>0?'flex':'none';
+  document.getElementById('bulkInfo').textContent=`${n} product${n!==1?'s':''} selected`;
+}
+
+function loadMore(){ visibleCount+=60; renderProducts(); }
+
+function renderProducts(){
+  const grid=document.getElementById('productGrid');
+  const wrap=document.getElementById('loadMoreWrap');
+  if(!filteredProducts.length){ grid.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No products match.</div></div>'; wrap.style.display='none'; return; }
+  const slice=filteredProducts.slice(0,visibleCount);
+  document.getElementById('resultsInfo').textContent=`Showing ${slice.length} of ${filteredProducts.length} products`;
+  wrap.style.display=filteredProducts.length>visibleCount?'block':'none';
+  grid.innerHTML=slice.map(p=>{
+    const yp=calcPrice(p.price);
+    const isSel=selectedSKUs.has(p.sku);
+    const isWatch=watchlist.some(w=>w.sku===p.sku);
+    const hasPromo=p.promo&&parseFloat(p.promo)>0;
+    return `<div class="pcard ${isSel?'sel':''} ${isWatch?'watching':''}" id="pc-${p.sku}" onclick="toggleSelect('${p.sku}',event)">
+      ${hasPromo?'<div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent3)"></div>':''}
+      <div class="pcard-sel-box" onclick="toggleSelect('${p.sku}',event)">${isSel?'✓':''}</div>
+      ${isWatch?'<div style="position:absolute;top:8px;left:8px;background:var(--accent4);color:#000;font-family:var(--mono);font-size:7px;padding:2px 5px;letter-spacing:.08em;font-weight:700;">WATCHING</div>':''}
+      ${p.image?`<img class="pcard-img" src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">`:'<div class="pcard-img-ph">No Image</div>'}
+      <div class="pcard-body">
+        <div class="pcard-sku">${p.sku}${p.brand?' · '+p.brand:''}</div>
+        <div class="pcard-name">${p.name}</div>
+        <div class="stock-row">
+          <div class="schip ${p.jhb===0?'r':p.jhb<=3?'y':'g'}">JHB: ${p.jhb}</div>
+          <div class="schip ${p.cpt===0?'r':'g'}">CPT: ${p.cpt}</div>
+          <div class="schip ${p.dbn===0?'r':'g'}">DBN: ${p.dbn}</div>
+          ${p.eta?`<div class="schip" style="border-color:var(--accent4);color:var(--accent4)">ETA ${p.eta}</div>`:''}
+        </div>
+        <div class="price-row">
+          <div class="pi"><div class="pi-l">Your Cost</div><div class="pi-v cost">R${p.price.toLocaleString()}</div></div>
+          <div class="pi"><div class="pi-l">RRP incl</div><div class="pi-v rrp">R${p.rrp.toLocaleString()}</div></div>
+          <div class="pi"><div class="pi-l">Your Price</div><div class="pi-v yours">R${yp.toLocaleString()}</div></div>
+        </div>
+      </div>
+      <div class="pcard-actions">
+        <button class="btn btn-wix btn-sm" onclick="event.stopPropagation();quickPub('${p.sku}')">🚀 Publish</button>
+        <button class="btn btn-success btn-sm" onclick="event.stopPropagation();toggleWatch('${p.sku}')">${isWatch?'👁 Watching':'+ Watch'}</button>
+        ${p.url?`<a href="${p.url}" target="_blank" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm">↗</button></a>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// WATCHLIST
+function toggleWatch(sku){ if(watchlist.find(w=>w.sku===sku)) removeWatch(sku); else addWatch(sku); }
+
+function addWatch(sku){
+  const p=allProducts.find(x=>x.sku===sku); if(!p||watchlist.find(w=>w.sku===sku)) return;
+  watchlist.push({ sku, name:p.name, brand:p.brand, image:p.image, yourPrice:calcPrice(p.price),
+    baseCost:p.price, currentCost:p.price, currentJhb:p.jhb, currentCpt:p.cpt, currentDbn:p.dbn,
+    costDelta:0, stockDelta:0, priceChanged:false, status:'ok',
+    addedAt:new Date().toISOString(), lastSeen:new Date().toISOString() });
+  saveWatch(); updateStats(); renderProducts();
+}
+
+function removeWatch(sku){ watchlist=watchlist.filter(w=>w.sku!==sku); saveWatch(); updateStats(); renderWatch(); renderProducts(); }
+function clearWatch(){ if(!confirm('Clear entire watchlist?')) return; watchlist=[]; saveWatch(); updateStats(); renderWatch(); renderProducts(); }
+function saveWatch(){ localStorage.setItem('bs_wl',JSON.stringify(watchlist)); }
+
+function bulkWatch(){
+  let n=0;
+  selectedSKUs.forEach(sku=>{ if(!watchlist.find(w=>w.sku===sku)){addWatch(sku);n++;} });
+  clearSelection(); alert(`Added ${n} products to watchlist.`); switchTab('watchlist');
+}
+
+function syncWatch(){
+  if(!allProducts.length||!watchlist.length) return;
+  const pct=parseFloat(document.getElementById('priceAlertPct')?.value||5)/100;
+  let alerts=0;
+  watchlist.forEach(w=>{
+    const live=allProducts.find(p=>p.sku===w.sku);
+    if(!live){w.status='missing';return;}
+    const prevCost=w.currentCost, prevJhb=w.currentJhb;
+    w.currentCost=live.price; w.currentJhb=live.jhb; w.currentCpt=live.cpt; w.currentDbn=live.dbn;
+    w.costDelta=live.price-prevCost; w.stockDelta=live.jhb-prevJhb;
+    w.priceChanged=Math.abs(w.costDelta)/(prevCost||1)>pct;
+    w.lastSeen=new Date().toISOString();
+    w.yourPrice=calcPrice(live.price);
+    if(live.jhb===0&&live.cpt===0&&live.dbn===0){w.status='oos';alerts++;}
+    else if(live.jhb<=3){w.status='low';alerts++;}
+    else if(w.priceChanged){w.status='price';alerts++;}
+    else w.status='ok';
+  });
+  saveWatch(); document.getElementById('tc-alerts').textContent=alerts; renderWatch();
+}
+
+function renderWatch(){
+  const tbl=document.getElementById('watchTable'); const emp=document.getElementById('watchEmpty');
+  if(!watchlist.length){tbl.style.display='none';emp.style.display='block';return;}
+  tbl.style.display='table';emp.style.display='none';
+  document.getElementById('watchBody').innerHTML=watchlist.map(w=>{
+    const sc=w.status==='oos'?'r':w.status==='low'?'y':w.status==='missing'?'r':'g';
+    const st=w.status==='oos'?'OOS':w.status==='low'?'LOW('+w.currentJhb+')':w.status==='missing'?'NOT FOUND':w.status==='price'?'PRICE CHG':'OK';
+    const pc=w.costDelta?(w.costDelta>0?`<span class="chg-up">+R${Math.abs(w.costDelta).toFixed(0)}</span>`:`<span class="chg-dn">-R${Math.abs(w.costDelta).toFixed(0)}</span>`):`<span class="chg-nil">—</span>`;
+    const sc2=w.stockDelta?(w.stockDelta>0?`<span class="chg-dn">+${w.stockDelta}</span>`:`<span class="chg-up">${w.stockDelta}</span>`):`<span class="chg-nil">—</span>`;
+    return `<tr><td><div style="font-weight:600;font-size:12px;max-width:200px">${w.name.substring(0,52)}${w.name.length>52?'...':''}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:2px">${w.brand}</div></td>
+    <td style="font-family:var(--mono);font-size:10px">${w.sku}</td>
+    <td style="font-family:var(--cond);font-size:16px;font-weight:700;color:var(--accent2)">R${w.yourPrice?.toLocaleString()||'—'}</td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--muted2)">R${w.currentCost?.toLocaleString()||'—'}</td>
+    <td style="font-family:var(--cond);font-size:15px;font-weight:700">${w.currentJhb??'?'}</td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--muted2)">${w.currentCpt??'?'}</td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--muted2)">${w.currentDbn??'?'}</td>
+    <td>${pc}</td><td>${sc2}</td>
+    <td><span class="sdot ${sc}"></span><span style="font-family:var(--mono);font-size:9px">${st}</span></td>
+    <td style="font-family:var(--mono);font-size:8px;color:var(--muted)">${w.lastSeen?.split('T')[1]?.substring(0,5)||'—'}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="removeWatch('${w.sku}')">✕</button></td></tr>`;
+  }).join('');
+}
+
+// ALERTS
+function buildAlerts(){
+  if(!allProducts.length) return;
+  const thr=parseInt(document.getElementById('stockThreshold')?.value||3);
+  const alerts=[];
+  watchlist.filter(w=>w.status!=='ok').forEach(w=>{
+    alerts.push({type:w.status==='oos'?'crit':'warn', msg:`<strong>👁 [WATCHING]</strong> ${w.name} — ${w.status==='oos'?'OUT OF STOCK NATIONWIDE':w.status==='low'?'Low stock: '+w.currentJhb+' units':w.status==='price'?'Cost changed R'+(w.costDelta>0?'+':'')+w.costDelta?.toFixed(0):'Issue detected'}`, meta:w.sku});
+  });
+  allProducts.forEach(p=>{
+    if(p.jhb===0&&p.cpt===0&&p.dbn===0) alerts.push({type:'crit',msg:`<strong>${p.name}</strong> — Out of stock nationwide`,meta:p.sku+(p.eta?' · ETA: '+p.eta:' · No ETA')});
+    else if(p.jhb===0&&(p.cpt>0||p.dbn>0)) alerts.push({type:'warn',msg:`<strong>${p.name}</strong> — OOS in JHB, available CPT:${p.cpt}/DBN:${p.dbn}`,meta:p.sku});
+    else if(p.jhb>0&&p.jhb<=thr) alerts.push({type:'warn',msg:`<strong>${p.name}</strong> — Low JHB stock: ${p.jhb} unit${p.jhb!==1?'s':''}`,meta:p.sku});
+    if(p.promo&&parseFloat(p.promo)>0) alerts.push({type:'info',msg:`<strong>${p.name}</strong> — Promo: R${parseFloat(p.promo).toLocaleString()}${p.promoEnds?' ends '+p.promoEnds:''}`,meta:p.sku});
+  });
+  const n=alerts.filter(a=>a.type==='crit'||a.type==='warn').length;
+  document.getElementById('tc-alerts').textContent=n;
+  const cont=document.getElementById('alertsContainer');
+  if(!alerts.length){cont.innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-text">All clear. No alerts.</div></div>';return;}
+  const crits=alerts.filter(a=>a.type==='crit'),warns=alerts.filter(a=>a.type==='warn'),infos=alerts.filter(a=>a.type==='info');
+  cont.innerHTML=[
+    crits.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--accent3);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px">⛔ Critical (${crits.length})</div>`+crits.map(aC).join(''):'',
+    warns.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;margin:18px 0 8px">⚠ Warnings (${warns.length})</div>`+warns.map(aC).join(''):'',
+    infos.length?`<div style="font-family:var(--mono);font-size:9px;color:var(--accent4);letter-spacing:.15em;text-transform:uppercase;margin:18px 0 8px">ℹ Promos (${infos.length})</div>`+infos.map(aC).join(''):'',
+  ].join('');
+}
+
+function aC(a){ const c=a.type==='crit'?'':a.type==='warn'?'warn':'info'; const col=a.type==='crit'?'var(--accent3)':a.type==='warn'?'var(--accent)':'var(--accent4)'; return `<div class="acard ${c}"><div><div class="acard-type" style="color:${col}">${a.type.toUpperCase()}</div><div class="acard-msg">${a.msg}</div><div class="acard-meta">${a.meta}</div></div></div>`; }
+
+// PUBLISH MODAL
+function quickPub(sku){ selectedSKUs.clear(); selectedSKUs.add(sku); openPublishModal(); }
+
+function openPublishModal(){
+  if(!selectedSKUs.size){alert('Select products first.');return;}
+  const prods=[...selectedSKUs].map(s=>allProducts.find(p=>p.sku===s)).filter(Boolean);
+  document.getElementById('modalCount').textContent=prods.length;
+  document.getElementById('pubCount').textContent=prods.length;
+  document.getElementById('modalSub').textContent=`Publishing ${prods.length} product${prods.length!==1?'s':''} to buysave.co.za`;
+  document.getElementById('modalMarkup').value=document.getElementById('defaultMarkup').value;
+  document.getElementById('publishProg').style.display='none';
+  document.getElementById('modalList').innerHTML=prods.map(p=>`<div class="mpitem"><span>${p.name.substring(0,48)}${p.name.length>48?'...':''}</span><span style="color:var(--accent2)">R${calcPrice(p.price).toLocaleString()}</span></div>`).join('');
+  document.getElementById('publishModal').style.display='flex';
+}
+
+function closeModal(){ if(isPublishing) return; document.getElementById('publishModal').style.display='none'; }
+
+function updateModalPrices(){
+  const prods=[...selectedSKUs].map(s=>allProducts.find(p=>p.sku===s)).filter(Boolean);
+  document.getElementById('modalList').innerHTML=prods.map(p=>`<div class="mpitem"><span>${p.name.substring(0,48)}${p.name.length>48?'...':''}</span><span style="color:var(--accent2)">R${calcPrice(p.price).toLocaleString()}</span></div>`).join('');
+}
+
+async function startPublish(){
+  const seoMode=document.getElementById('modalSeo').value;
+  const afterPub=document.getElementById('modalAfter').value;
+  const extraCtx=document.getElementById('modalCtx').value;
+  const stockMode=document.getElementById('modalStock').value;
+  const collection=document.getElementById('modalCollection').value.trim();
+  const prods=[...selectedSKUs].map(s=>allProducts.find(p=>p.sku===s)).filter(Boolean);
+
+  isPublishing=true;
+  document.getElementById('publishBtn').disabled=true;
+  document.getElementById('cancelBtn').disabled=true;
+  document.getElementById('publishProg').style.display='block';
+  const log=document.getElementById('pubLog');
+  const pf=document.getElementById('progFill');
+  const pt=document.getElementById('progText');
+  log.innerHTML='';
+
+  const addLog=(msg,cls='')=>{ log.innerHTML+=`<div class="ll ${cls}">${new Date().toLocaleTimeString('en-ZA')} — ${msg}</div>`; log.scrollTop=log.scrollHeight; };
+  addLog(`Starting: ${prods.length} product${prods.length!==1?'s':''}`);
+
+  for(let i=0;i<prods.length;i++){
+    const p=prods[i];
+    pf.style.width=Math.round((i/prods.length)*100)+'%';
+    pt.textContent=`${i+1}/${prods.length}: ${p.name.substring(0,40)}...`;
+    addLog(`Processing ${p.sku} — ${p.name.substring(0,45)}...`);
+
+    try{
+      // Step 1: Generate SEO copy if enabled
+      let description=p.desc;
+      let productName=p.name;
+
+      if(seoMode==='auto'){
+        try{
+          addLog(`  Generating SEO copy...`);
+          const cleanDesc=p.desc.replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().substring(0,800);
+          const yp=calcPrice(p.price);
+          const sr=await fetch('https://api.anthropic.com/v1/messages',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
+              messages:[{role:'user',content:`Write product content for BuySave (buysave.co.za), a South African tech store. Practical, value-focused, SA context. Return ONLY valid JSON no markdown: {"title":"SEO product title max 200 chars","description":"full HTML description 200-300 words using p and ul tags","shortDescription":"2 sentence summary"}. Product: ${p.name}. Price: R${yp}. Category: ${p.catTree}. Brand: ${p.brand}. Warranty: ${p.warranty}. Supplier desc: ${cleanDesc}. ${extraCtx?'Extra context: '+extraCtx:''}`}]
+            })
+          });
+          const sd=await sr.json();
+          const sj=JSON.parse((sd.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
+          if(sj.description) description=sj.description;
+          if(sj.title) productName=sj.title;
+          addLog(`  ✓ SEO copy generated`,'ok');
+        }catch(seoErr){
+          addLog(`  ⚠ SEO failed, using supplier description`,'warn');
+        }
+      }
+
+      // Step 2: Build product payload for relay
+      const yp=calcPrice(p.price);
+      const productPayload={
+        name: productName,
+        description: description,
+        price: yp,
+        sku: p.sku,
+        quantity: stockMode==='instock' ? 999 : p.jhb,
+        visible: stockMode==='instock' || p.jhb>0,
+        imageUrl: p.image||'',
+        additionalImages: p.images||[],
+        weight: p.weight||0,
+        collectionName: collection||''
+      };
+
+      // Step 3: Send to relay → Wix
+      addLog(`  Publishing to Wix via relay...`);
+      const result = await callRelay('createProduct', { product: productPayload });
+
+      if(result && result.product){
+        const wixId = result.product.id;
+        addLog(`  ✓ Published! Wix ID: ${wixId}`,'ok');
+
+        // Add to watchlist if requested
+        if(afterPub==='watch' && !watchlist.find(w=>w.sku===p.sku)) addWatch(p.sku);
+
+        // Record in published list
+        if(!published.find(q=>q.sku===p.sku)){
+          published.push({sku:p.sku, name:p.name, wixId, price:yp, publishedAt:new Date().toISOString()});
+          localStorage.setItem('bs_pub',JSON.stringify(published));
+        }
+      } else {
+        addLog(`  ✗ Unexpected response from relay`,'err');
+      }
+
+    }catch(err){
+      addLog(`  ✗ Error: ${err.message}`,'err');
+    }
+
+    // Small delay between products to avoid rate limiting
+    await new Promise(r=>setTimeout(r,800));
+  }
+
+  pf.style.width='100%';
+  pt.textContent=`Complete — ${prods.length} product${prods.length!==1?'s':''} processed`;
+  addLog('✓ All done.','ok');
+  isPublishing=false;
+  document.getElementById('publishBtn').disabled=false;
+  document.getElementById('cancelBtn').disabled=false;
+  renderProducts(); renderQueue();
+}
+
+// QUEUE
+function renderQueue(){
+  const el=document.getElementById('queueTable'),emp=document.getElementById('queueEmpty');
+  if(!published.length){el.innerHTML='';emp.style.display='block';return;}
+  emp.style.display='none';
+  el.innerHTML=`<table class="wtable"><thead><tr><th>Product</th><th>SKU</th><th>Price</th><th>Wix ID</th><th>Published</th><th></th></tr></thead><tbody>
+  ${published.map(q=>`<tr>
+    <td style="font-size:12px">${q.name?.substring(0,50)||'—'}</td>
+    <td style="font-family:var(--mono);font-size:10px">${q.sku}</td>
+    <td style="font-family:var(--cond);font-size:15px;color:var(--accent2)">R${q.price?.toLocaleString()||'—'}</td>
+    <td style="font-family:var(--mono);font-size:9px;color:var(--muted)">${q.wixId||'—'}</td>
+    <td style="font-family:var(--mono);font-size:9px;color:var(--muted)">${q.publishedAt?.split('T')[0]||'—'}</td>
+    <td><button class="btn btn-danger btn-sm" onclick="remQ('${q.sku}')">✕</button></td>
+  </tr>`).join('')}
+  </tbody></table>`;
+}
+
+function remQ(sku){ published=published.filter(q=>q.sku!==sku); localStorage.setItem('bs_pub',JSON.stringify(published)); renderQueue(); }
+
+// WIX TEST — via relay
+async function testWix(){
+  const st=document.getElementById('wixStatus');
+  st.textContent='Testing connection via relay...'; st.style.color='var(--muted2)';
+  try{
+    const data = await callRelay('test');
+    st.textContent=`✓ Connected! Found ${data.productCount||0} products in your Wix store.`;
+    st.style.color='var(--accent2)';
+    saveWix();
+  }catch(e){
+    st.textContent='✗ '+e.message;
+    st.style.color='var(--accent3)';
+  }
+}
+
+function saveWix(){
+  settings.relayUrl=document.getElementById('relayUrl')?.value||DEFAULT_RELAY;
+  settings.wixApiKey='[stored in relay script]';
+  settings.wixSiteId='[stored in relay script]';
+  localStorage.setItem('bs_cfg',JSON.stringify(settings));
+  if(document.getElementById('wixStatus').textContent.indexOf('✓')>-1) return;
+  document.getElementById('wixStatus').textContent='Saved.';
+  document.getElementById('wixStatus').style.color='var(--accent2)';
+}
+
+// EXPORT
+function exportSel(){
+  const items=selectedSKUs.size>0?allProducts.filter(p=>selectedSKUs.has(p.sku)):filteredProducts.slice(0,1000);
+  const hdrs=['SKU','Name','Brand','Cost excl VAT','RRP incl VAT','Your Price','JHB','CPT','DBN','Margin%','Categories','EAN','Warranty','Image'];
+  const rows=items.map(p=>[`"${p.sku}"`,`"${p.name}"`,`"${p.brand}"`,p.price,p.rrp,calcPrice(p.price),p.jhb,p.cpt,p.dbn,p.margin,`"${p.categories}"`,p.ean,`"${p.warranty}"`,`"${p.image}"`].join(','));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([[hdrs.join(','),...rows].join('\n')],{type:'text/csv'}));
+  a.download=`buysave-syntech-${new Date().toISOString().split('T')[0]}.csv`;a.click();
+}
+</script>
+</body>
+</html>
