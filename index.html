@@ -158,17 +158,24 @@ select option{background:var(--surface2)}
   <div style="background:var(--surface);border:1px solid var(--accent);padding:20px;margin-bottom:16px">
     <div class="flabel" style="margin-bottom:10px;color:var(--accent)">🔍 Find Products by SKU or Name</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="min-width:140px;max-width:160px">
+        <div class="flabel">Supplier</div>
+        <select id="supplierSelect">
+          <option value="syntech">Syntech</option>
+          <option value="esquire">Esquire</option>
+        </select>
+      </div>
       <div style="flex:1;min-width:200px">
-        <input type="text" id="skuLookup" placeholder="Type SKU (e.g. TUF-GAMING-1000G) or product name..." onkeydown="if(event.key==='Enter')lookupProduct()">
+        <div class="flabel">SKU or product name</div>
+        <input type="text" id="skuLookup" placeholder="e.g. TUF-GAMING-1000G or mini PC..." onkeydown="if(event.key==='Enter')lookupProduct()">
       </div>
       <button class="btn btn-primary" onclick="lookupProduct()" id="lookupBtn">Search Feed</button>
-      <button class="btn btn-ghost btn-sm" onclick="loadFeedPage()" id="loadPageBtn" title="Load next 200 products from feed">Load Next 200</button>
-      <button class="btn btn-ghost btn-sm" onclick="clearLoaded()">Clear Results</button>
+      <button class="btn btn-ghost btn-sm" onclick="loadFeedPage()" id="loadPageBtn" title="Load next 200 products">Load Next 200</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearLoaded()">Clear</button>
     </div>
     <div id="lookupStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:8px"></div>
     <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;line-height:1.8">
-      Enter a SKU or partial name → click Search Feed → product loads instantly from Syntech.<br>
-      Or click <strong style="color:var(--text)">Load Next 200</strong> to browse a batch of products.
+      Select supplier → enter SKU or name → Search. Or Load Next 200 to browse a batch.
     </div>
   </div>
 
@@ -406,22 +413,26 @@ let currentFeedPage=0, totalFeedPages=999;
 async function lookupProduct(){
   const q = document.getElementById('skuLookup').value.trim();
   if(!q){ alert('Enter a SKU or product name first.'); return; }
+  const supplier = document.getElementById('supplierSelect').value;
   const btn = document.getElementById('lookupBtn');
   const status = document.getElementById('lookupStatus');
   btn.disabled=true; btn.textContent='Searching...';
-  status.textContent='Searching Syntech feed... (this takes ~5 seconds)';
+  status.textContent=`Searching ${supplier} feed... (~5 seconds)`;
   status.style.color='var(--muted2)';
   try{
-    const data = await callRelay('searchFeed', { query: q });
+    const action = supplier==='esquire' ? 'searchEsquireFeed' : 'searchFeed';
+    const data = await callRelay(action, { query: q });
     if(!data.xml || data.total===0){
-      status.textContent='No products found for "'+q+'". Try a different SKU or name.';
+      status.textContent=`No products found for "${q}" in ${supplier}. Try a different term.`;
       status.style.color='var(--accent3)';
     } else {
-      // Parse the returned XML
       const doc=new DOMParser().parseFromString(data.xml,'text/xml');
       let added=0;
-      doc.querySelectorAll('product').forEach(p=>{
-        const prod=parseProduct(p);
+      const nodes = supplier==='esquire'
+        ? doc.querySelectorAll('product')
+        : doc.querySelectorAll('product');
+      nodes.forEach(p=>{
+        const prod = supplier==='esquire' ? parseEsquireProduct(p) : parseProduct(p);
         if(!allProducts.find(x=>x.sku===prod.sku)){ allProducts.push(prod); added++; }
       });
       filteredProducts=[...allProducts];
@@ -429,8 +440,8 @@ async function lookupProduct(){
       document.getElementById('brandPillsWrap').style.display='block';
       document.getElementById('catPillsWrap').style.display='block';
       filterProducts();
-      document.getElementById('feedStatusText').textContent='Syntech Feed Active';
-      status.textContent='✓ Found '+added+' product'+(added!==1?'s':'')+' · '+allProducts.length+' total loaded';
+      document.getElementById('feedStatusText').textContent=`${supplier==='esquire'?'Esquire':'Syntech'} Feed Active`;
+      status.textContent=`✓ Found ${added} product${added!==1?'s':''} · ${allProducts.length} total loaded`;
       status.style.color='var(--accent2)';
     }
   }catch(e){
@@ -440,22 +451,22 @@ async function lookupProduct(){
   btn.disabled=false; btn.textContent='Search Feed';
 }
 
-// LOAD a page of 200 products
 async function loadFeedPage(){
+  const supplier = document.getElementById('supplierSelect').value;
   const btn=document.getElementById('loadPageBtn');
   const status=document.getElementById('lookupStatus');
   if(currentFeedPage>=totalFeedPages){ status.textContent='All products loaded.'; return; }
   btn.disabled=true; btn.textContent='Loading...';
-  status.textContent='Loading products '+(currentFeedPage*200+1)+'–'+((currentFeedPage+1)*200)+'...';
+  status.textContent=`Loading ${supplier} products ${currentFeedPage*200+1}–${(currentFeedPage+1)*200}...`;
   status.style.color='var(--muted2)';
   try{
-    const data = await callRelay('fetchFeed', { page: currentFeedPage, pageSize: 200 });
+    const action = supplier==='esquire' ? 'fetchEsquireFeed' : 'fetchFeed';
+    const data = await callRelay(action, { page: currentFeedPage, pageSize: 200 });
     totalFeedPages=data.totalPages;
-    // Parse XML and merge
     const doc=new DOMParser().parseFromString(data.xml,'text/xml');
     let added=0;
     doc.querySelectorAll('product').forEach(p=>{
-      const prod=parseProduct(p);
+      const prod = supplier==='esquire' ? parseEsquireProduct(p) : parseProduct(p);
       if(!allProducts.find(x=>x.sku===prod.sku)){ allProducts.push(prod); added++; }
     });
     currentFeedPage++;
@@ -464,7 +475,7 @@ async function loadFeedPage(){
     document.getElementById('brandPillsWrap').style.display='block';
     document.getElementById('catPillsWrap').style.display='block';
     filterProducts();
-    document.getElementById('feedStatusText').textContent='Syntech Feed Active';
+    document.getElementById('feedStatusText').textContent=`${supplier==='esquire'?'Esquire':'Syntech'} Feed Active`;
     status.textContent=`✓ Loaded ${added} products · ${allProducts.length} total · Page ${currentFeedPage}/${totalFeedPages}`;
     status.style.color='var(--accent2)';
     btn.textContent=currentFeedPage>=totalFeedPages?'All Loaded':'Load Next 200';
@@ -477,12 +488,13 @@ async function loadFeedPage(){
 }
 
 function clearLoaded(){
-  allProducts=[]; filteredProducts=[]; currentFeedPage=0;
+  allProducts=[]; filteredProducts=[]; currentFeedPage=0; totalFeedPages=999;
   updateStats(); renderProducts();
   document.getElementById('brandPillsWrap').style.display='none';
   document.getElementById('catPillsWrap').style.display='none';
   document.getElementById('lookupStatus').textContent='';
   document.getElementById('feedStatusText').textContent='Ready';
+  document.getElementById('loadPageBtn').textContent='Load Next 200';
 }
 
 function loadSettings(){
@@ -589,7 +601,41 @@ function parseProduct(p){
     warranty:p.querySelector('warranty')?.textContent?.trim()||'',
     ean:p.querySelector('ean')?.textContent?.trim()||'',
     colour:p.querySelector('colour')?.textContent?.trim()||'',
-    modified:g('last_modified')
+    modified:g('last_modified'),
+    source:'syntech'
+  };
+}
+
+function parseEsquireProduct(p){
+  const g=t=>p.querySelector(t)?.textContent?.trim()||'';
+  const n=t=>parseFloat(g(t))||0;
+  const available = g('AvailableQty').toLowerCase()==='yes';
+  const costPrice = n('Price');
+  return {
+    sku:       g('ProductCode'),
+    name:      g('ProductName'),
+    price:     costPrice,
+    rrp:       Math.ceil(costPrice * 1.15 * 1.3 / 10) * 10, // estimated RRP at 30% margin incl VAT
+    margin:    30,
+    promo:     '',
+    promoEnds: '',
+    cpt:       available ? 99 : 0,
+    jhb:       available ? 99 : 0,
+    dbn:       available ? 99 : 0,
+    eta:       '',
+    url:       '',
+    desc:      g('ProductSummary'),
+    shortDesc: g('ProductSummary'),
+    image:     g('image'),
+    images:    [],
+    categories:g('Category'),
+    catTree:   g('Category'),
+    brand:     '',
+    warranty:  '',
+    ean:       '',
+    colour:    '',
+    modified:  '',
+    source:    'esquire'
   };
 }
 
@@ -711,7 +757,7 @@ function renderProducts(){
       ${isWatch?'<div style="position:absolute;top:8px;left:8px;background:var(--accent4);color:#000;font-family:var(--mono);font-size:7px;padding:2px 5px;letter-spacing:.08em;font-weight:700;">WATCHING</div>':''}
       ${p.image?`<img class="pcard-img" src="${p.image}" alt="" loading="lazy" onerror="this.style.display='none'">`:'<div class="pcard-img-ph">No Image</div>'}
       <div class="pcard-body">
-        <div class="pcard-sku">${p.sku}${p.brand?' · '+p.brand:''}</div>
+        <div class="pcard-sku">${p.sku}${p.brand?' · '+p.brand:''} <span style="font-family:var(--mono);font-size:7px;padding:1px 5px;background:${p.source==='esquire'?'var(--accent5)':'var(--accent4)'};color:#000;margin-left:4px">${(p.source||'syntech').toUpperCase()}</span></div>
         <div class="pcard-name">${p.name}</div>
         <div class="stock-row">
           <div class="schip ${p.jhb===0?'r':p.jhb<=3?'y':'g'}">JHB: ${p.jhb}</div>
