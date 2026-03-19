@@ -327,7 +327,12 @@ select option{background:var(--surface2)}
   <div class="mfield"><label>Products (<span id="modalCount">0</span>)</label><div class="mplist" id="modalList"></div></div>
   <div class="mfield-row">
     <div class="mfield"><label>Your Markup %</label><input type="number" id="modalMarkup" value="30" min="5" max="300" oninput="updateModalPrices()"></div>
-    <div class="mfield"><label>Wix Collection (optional)</label><input type="text" id="modalCollection" placeholder="e.g. Mini PCs, Laptops"></div>
+    <div class="mfield">
+      <label>Wix Collection <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+      <select id="modalCollection" style="width:100%">
+        <option value="">— Loading your collections... —</option>
+      </select>
+    </div>
   </div>
   <div class="mfield"><label>SEO Copy Generation</label>
     <select id="modalSeo">
@@ -836,6 +841,21 @@ function openPublishModal(){
   document.getElementById('publishProg').style.display='none';
   document.getElementById('modalList').innerHTML=prods.map(p=>`<div class="mpitem"><span>${p.name.substring(0,48)}${p.name.length>48?'...':''}</span><span style="color:var(--accent2)">R${calcPrice(p.price).toLocaleString()}</span></div>`).join('');
   document.getElementById('publishModal').style.display='flex';
+  // Load Wix collections
+  loadWixCollections();
+}
+
+async function loadWixCollections(){
+  const sel = document.getElementById('modalCollection');
+  sel.innerHTML = '<option value="">— Loading collections... —</option>';
+  try{
+    const data = await callRelay('getCollections');
+    const cols = data.collections || [];
+    sel.innerHTML = '<option value="">— No collection —</option>' +
+      cols.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  }catch(e){
+    sel.innerHTML = '<option value="">— Could not load collections —</option>';
+  }
 }
 
 function closeModal(){ if(isPublishing) return; document.getElementById('publishModal').style.display='none'; }
@@ -897,8 +917,20 @@ async function startPublish(){
         }
       }
 
-      // Step 2: Build product payload for relay
+      // Step 2: Upload image to Wix media
       const yp=calcPrice(p.price);
+      const colId=document.getElementById('modalCollection').value||'';
+      let imageUrl=p.image||'';
+      if(p.image){
+        addLog(`  Uploading image to Wix media...`);
+        try{
+          const imgRes=await callRelay('uploadImage',{imageUrl:p.image});
+          if(imgRes.success&&imgRes.url){ imageUrl=imgRes.url; addLog(`  ✓ Image uploaded`,'ok'); }
+          else addLog(`  ⚠ Image upload failed, skipping`,'warn');
+        }catch(e){ addLog(`  ⚠ Image skipped: ${e.message}`,'warn'); }
+      }
+
+      // Step 3: Build product payload for relay
       const productPayload={
         name: productName,
         description: description,
@@ -906,10 +938,10 @@ async function startPublish(){
         sku: p.sku,
         quantity: stockMode==='instock' ? 999 : p.jhb,
         visible: stockMode==='instock' || p.jhb>0,
-        imageUrl: p.image||'',
+        imageUrl: imageUrl,
         additionalImages: p.images||[],
         weight: p.weight||0,
-        collectionName: collection||''
+        collectionName: colId
       };
 
       // Step 3: Send to relay → Wix
