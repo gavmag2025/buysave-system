@@ -137,6 +137,7 @@ select option{background:var(--surface2)}
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab('browse')">📦 Browse &amp; Select <span class="tab-count g" id="tc-browse">—</span></div>
+  <div class="tab" onclick="switchTab('mywix')">🏪 My Wix Products <span class="tab-count g" id="tc-mywix">0</span></div>
   <div class="tab" onclick="switchTab('amazon')">🛒 Amazon Monitor <span class="tab-count b" id="tc-amz">0</span></div>
   <div class="tab" onclick="switchTab('watchlist')">👁 Watchlist <span class="tab-count b" id="tc-watch">0</span></div>
   <div class="tab" onclick="switchTab('alerts')">🚨 Alerts <span class="tab-count r" id="tc-alerts">0</span></div>
@@ -237,6 +238,62 @@ select option{background:var(--surface2)}
   </div>
   <div id="loadMoreWrap" style="text-align:center;padding:20px;display:none">
     <button class="btn btn-ghost" onclick="loadMore()">Load More</button>
+  </div>
+</div>
+
+<!-- MY WIX PRODUCTS -->
+<div class="panel" id="panel-mywix">
+  <div class="shdr">
+    <div class="stitle">My <span>Wix Products</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="loadMyWixProducts()" id="loadWixBtn">↻ Load from buysave.co.za</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearWixSelection()">Deselect All</button>
+    </div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--border);padding:12px 16px;font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9;margin-bottom:16px">
+    Load your existing buysave.co.za products → select any → run the SEO Agent to rewrite descriptions, meta titles and focus keywords → push updates back to Wix. Also tag products as International or Local.
+  </div>
+
+  <!-- FILTERS -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:1;min-width:180px;max-width:300px">
+      <div class="flabel">Search</div>
+      <input type="text" id="wixSearchInput" placeholder="Filter by name or SKU..." oninput="filterWixProducts()">
+    </div>
+    <div style="min-width:150px;max-width:200px">
+      <div class="flabel">Tag Filter</div>
+      <select id="wixTagFilter" onchange="filterWixProducts()">
+        <option value="">All Products</option>
+        <option value="international">International</option>
+        <option value="local">Local</option>
+        <option value="untagged">Untagged</option>
+      </select>
+    </div>
+    <div style="min-width:150px;max-width:200px">
+      <div class="flabel">Sort</div>
+      <select id="wixSortFilter" onchange="filterWixProducts()">
+        <option value="name">Name A-Z</option>
+        <option value="price_desc">Price High-Low</option>
+        <option value="price_asc">Price Low-High</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- BULK BAR -->
+  <div class="bulk-bar" id="wixBulkBar" style="display:none">
+    <div class="bulk-info" id="wixBulkInfo">0 selected</div>
+    <div class="bulk-actions">
+      <button class="btn btn-success btn-sm" onclick="bulkTagWix('local')">🇿🇦 Tag as Local</button>
+      <button class="btn btn-ghost btn-sm" onclick="bulkTagWix('international')">✈ Tag as International</button>
+      <button class="btn btn-danger btn-sm" onclick="bulkTagWix('')">✕ Clear Tags</button>
+    </div>
+  </div>
+
+  <div id="wixProductsInfo" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:10px"></div>
+  <div id="wixProductsEmpty" class="empty"><div class="empty-icon">🏪</div><div class="empty-text">Click "Load from buysave.co.za" to fetch your existing products.</div></div>
+  <div class="pgrid" id="wixProductsGrid"></div>
+  <div id="wixLoadMoreWrap" style="text-align:center;padding:20px;display:none">
+    <button class="btn btn-ghost" onclick="loadMoreWixProducts()">Load More</button>
   </div>
 </div>
 
@@ -409,6 +466,20 @@ select option{background:var(--surface2)}
     </select>
   </div>
 
+  <div class="mfield">
+    <label>Product Origin</label>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted2);cursor:pointer;background:var(--surface2);border:1px solid var(--border2);padding:8px 16px;flex:1;justify-content:center" id="originLocalLabel">
+        <input type="radio" name="productOrigin" id="originLocal" value="local" checked style="accent-color:var(--accent2);width:14px;height:14px">
+        🇿🇦 Local Stock
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted2);cursor:pointer;background:var(--surface2);border:1px solid var(--border2);padding:8px 16px;flex:1;justify-content:center" id="originIntlLabel">
+        <input type="radio" name="productOrigin" id="originIntl" value="international" style="accent-color:var(--accent);width:14px;height:14px">
+        ✈ International Import
+      </label>
+    </div>
+  </div>
+
   <div id="publishProg" style="display:none">
     <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
     <div class="prog-text" id="progText">Ready</div>
@@ -555,7 +626,7 @@ function saveSettings(){ settings.defaultMarkup=document.getElementById('default
 function saveWix(){ settings.wixApiKey=document.getElementById('wixApiKey').value; settings.wixSiteId=document.getElementById('wixSiteId').value; localStorage.setItem('bs_cfg',JSON.stringify(settings)); document.getElementById('wixStatus').textContent='Saved.'; document.getElementById('wixStatus').style.color='var(--accent2)'; }
 
 function switchTab(id){
-  const tabs=['browse','amazon','watchlist','alerts','publish','settings'];
+  const tabs=['browse','mywix','amazon','watchlist','alerts','publish','settings'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===id));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
@@ -982,6 +1053,7 @@ async function startPublish(){
   const afterPub=document.getElementById('modalAfter').value;
   const extraCtx=document.getElementById('modalCtx').value;
   const stockMode=document.getElementById('modalStock').value;
+  const isInternational=document.getElementById('originIntl').checked;
   const collection=document.getElementById('modalCollection').value.trim();
   const prods=[...selectedSKUs].map(s=>allProducts.find(p=>p.sku===s)).filter(Boolean);
 
@@ -1047,7 +1119,8 @@ async function startPublish(){
         brandId: brandId,
         metaTitle: p._metaTitle||'',
         metaDescription: p._metaDescription||'',
-        focusKeyword: p._focusKeyword||''
+        focusKeyword: p._focusKeyword||'',
+        isInternational: isInternational
       };
 
       // Step 2: Send to relay → Wix
@@ -1132,8 +1205,200 @@ function saveWix(){
 }
 
 // ============================================================
-// AMAZON MONITOR
+// MY WIX PRODUCTS
 // ============================================================
+let wixProducts=[], wixFiltered=[], wixSelected=new Set(), wixOffset=0;
+
+async function loadMyWixProducts(){
+  const btn=document.getElementById('loadWixBtn');
+  const info=document.getElementById('wixProductsInfo');
+  const empty=document.getElementById('wixProductsEmpty');
+  btn.disabled=true; btn.textContent='Loading...';
+  info.textContent='Fetching products from buysave.co.za...';
+  empty.style.display='none';
+  try{
+    // Load in batches of 50
+    wixProducts=[]; wixOffset=0;
+    let hasMore=true;
+    while(hasMore){
+      const data=await callRelay('getWixProducts',{limit:50, offset:wixOffset});
+      const prods=data.products||[];
+      wixProducts=[...wixProducts,...prods];
+      wixOffset+=prods.length;
+      hasMore=prods.length===50&&wixProducts.length<500;
+      info.textContent=`Loaded ${wixProducts.length} products...`;
+    }
+    document.getElementById('tc-mywix').textContent=wixProducts.length;
+    wixFiltered=[...wixProducts];
+    info.textContent=`${wixProducts.length} products loaded from buysave.co.za`;
+    renderWixProducts();
+  }catch(e){
+    info.textContent='Error: '+e.message;
+    info.style.color='var(--accent3)';
+  }
+  btn.disabled=false; btn.textContent='↻ Load from buysave.co.za';
+}
+
+function filterWixProducts(){
+  const q=document.getElementById('wixSearchInput').value.toLowerCase();
+  const tag=document.getElementById('wixTagFilter').value;
+  const sort=document.getElementById('wixSortFilter').value;
+  wixFiltered=wixProducts.filter(p=>{
+    if(q&&!p.name?.toLowerCase().includes(q)&&!p.sku?.toLowerCase().includes(q)) return false;
+    const ribbon=(p.ribbons&&p.ribbons[0]?.text||'').toLowerCase();
+    if(tag==='international'&&ribbon!=='international') return false;
+    if(tag==='local'&&ribbon!=='local') return false;
+    if(tag==='untagged'&&(ribbon==='international'||ribbon==='local')) return false;
+    return true;
+  });
+  wixFiltered.sort((a,b)=>{
+    if(sort==='price_asc') return (a.price||0)-(b.price||0);
+    if(sort==='price_desc') return (b.price||0)-(a.price||0);
+    return (a.name||'').localeCompare(b.name||'');
+  });
+  document.getElementById('wixProductsInfo').textContent=`Showing ${wixFiltered.length} of ${wixProducts.length} products`;
+  renderWixProducts();
+}
+
+function renderWixProducts(){
+  const grid=document.getElementById('wixProductsGrid');
+  const empty=document.getElementById('wixProductsEmpty');
+  if(!wixFiltered.length){
+    empty.style.display='block';
+    empty.innerHTML='<div class="empty-icon">🔍</div><div class="empty-text">No products match.</div>';
+    grid.innerHTML=''; return;
+  }
+  empty.style.display='none';
+  grid.innerHTML=wixFiltered.slice(0,60).map(p=>{
+    const isSel=wixSelected.has(p.id);
+    const ribbon=(p.ribbons&&p.ribbons[0]?.text)||'';
+    const ribbonCol=ribbon.toLowerCase()==='international'?'var(--accent5)':ribbon.toLowerCase()==='local'?'var(--accent2)':'';
+    const img=p.mainMedia?.image?.url||'';
+    const price=p.priceData?.price||0;
+    return `<div class="pcard ${isSel?'sel':''}" id="wp-${p.id}" onclick="toggleWixSelect('${p.id}',event)">
+      <div class="pcard-sel-box" onclick="toggleWixSelect('${p.id}',event)">${isSel?'✓':''}</div>
+      ${ribbon?`<div style="position:absolute;top:8px;left:8px;background:${ribbonCol};color:#000;font-family:var(--mono);font-size:7px;padding:2px 6px;font-weight:700;z-index:2">${ribbon.toUpperCase()}</div>`:''}
+      ${img?`<img class="pcard-img" src="${img}" onerror="this.style.display='none'">`:'<div class="pcard-img-ph">No Image</div>'}
+      <div class="pcard-body">
+        <div class="pcard-sku">${p.sku||'—'} <span style="font-family:var(--mono);font-size:7px;padding:1px 5px;background:var(--accent4);color:#000;margin-left:4px">WIX</span></div>
+        <div class="pcard-name">${(p.name||'').substring(0,65)}</div>
+        <div class="price-row">
+          <div class="pi"><div class="pi-l">Price</div><div class="pi-v yours">R${price.toLocaleString()}</div></div>
+          <div class="pi"><div class="pi-l">Stock</div><div class="pi-v cost">${p.stock?.quantity??'—'}</div></div>
+          <div class="pi"><div class="pi-l">Visible</div><div class="pi-v" style="font-size:12px;color:${p.visible?'var(--accent2)':'var(--accent3)'}">${p.visible?'YES':'NO'}</div></div>
+        </div>
+      </div>
+      <div class="pcard-actions">
+        <button class="btn btn-sm" style="background:${ribbon.toLowerCase()==='local'?'var(--accent2)':'var(--surface2)'};color:${ribbon.toLowerCase()==='local'?'#000':'var(--muted2)'};border:1px solid ${ribbon.toLowerCase()==='local'?'var(--accent2)':'var(--border2)'}" onclick="event.stopPropagation();tagProduct('${p.id}','local')">🇿🇦 Local</button>
+        <button class="btn btn-sm" style="background:${ribbon.toLowerCase()==='international'?'var(--accent5)':'var(--surface2)'};color:${ribbon.toLowerCase()==='international'?'#000':'var(--muted2)'};border:1px solid ${ribbon.toLowerCase()==='international'?'var(--accent5)':'var(--border2)'}" onclick="event.stopPropagation();tagProduct('${p.id}','international')">✈ Intl</button>
+        ${ribbon?`<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();tagProduct('${p.id}','')">✕ Clear Tag</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleWixSelect(id,e){
+  e&&e.stopPropagation();
+  if(wixSelected.has(id)) wixSelected.delete(id); else wixSelected.add(id);
+  const c=document.getElementById('wp-'+id);
+  if(c){c.classList.toggle('sel',wixSelected.has(id));const b=c.querySelector('.pcard-sel-box');if(b)b.textContent=wixSelected.has(id)?'✓':'';}
+  const n=wixSelected.size;
+  document.getElementById('wixBulkBar').style.display=n>0?'flex':'none';
+  document.getElementById('wixBulkInfo').textContent=`${n} product${n!==1?'s':''} selected`;
+}
+
+function clearWixSelection(){ wixSelected.clear(); renderWixProducts(); document.getElementById('wixBulkBar').style.display='none'; }
+
+async function tagProduct(id, tag){
+  const status=document.getElementById('wixProductsInfo');
+  status.textContent=tag ? `Tagging product as ${tag}...` : 'Clearing tag...';
+  try{
+    const ribbons = tag ? [{text:tag.charAt(0).toUpperCase()+tag.slice(1)}] : [];
+    await callRelay('updateProduct',{ productId:id, product:{ ribbons } });
+    const p=wixProducts.find(x=>x.id===id);
+    if(p){ p.ribbons=ribbons; }
+    status.textContent=tag ? `✓ Tagged as ${tag}` : '✓ Tag cleared';
+    status.style.color='var(--accent2)';
+    renderWixProducts();
+  }catch(e){
+    status.textContent='Error: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+}
+
+async function bulkTagWix(tag){
+  if(!wixSelected.size) return;
+  const info=document.getElementById('wixProductsInfo');
+  info.textContent=`Tagging ${wixSelected.size} products as ${tag}...`;
+  let done=0;
+  for(const id of wixSelected){
+    try{
+      await callRelay('updateProduct',{ productId:id, product:{ ribbons:[{text:tag.charAt(0).toUpperCase()+tag.slice(1)}] } });
+      const p=wixProducts.find(x=>x.id===id);
+      if(p) p.ribbons=[{text:tag.charAt(0).toUpperCase()+tag.slice(1)}];
+      done++;
+    }catch(e){ console.error('Tag failed for '+id, e); }
+    await new Promise(r=>setTimeout(r,300));
+  }
+  info.textContent=`✓ Tagged ${done} products as ${tag}`;
+  info.style.color='var(--accent2)';
+  clearWixSelection();
+  renderWixProducts();
+}
+
+async function runSEOOnOne(id){
+  const p=wixProducts.find(x=>x.id===id);
+  if(!p) return;
+  const info=document.getElementById('wixProductsInfo');
+  info.textContent=`Running SEO Agent on ${p.name?.substring(0,40)}...`;
+  info.style.color='var(--muted2)';
+  try{
+    const seo=await callRelay('generateSEO',{
+      product:{ name:p.name, price:p.priceData?.price||0, catTree:'', brand:'', warranty:'', desc:p.description||'', sku:p.sku||'' },
+      extraContext:''
+    });
+    // Update product on Wix
+    await callRelay('updateProduct',{
+      productId:id,
+      product:{
+        name: seo.title||p.name,
+        description: seo.description||p.description,
+        metaTitle: seo.titleTag||'',
+        metaDescription: seo.metaDescription||'',
+        focusKeyword: seo.focusKeyword||''
+      }
+    });
+    // Update local
+    p.name=seo.title||p.name;
+    p.description=seo.description||p.description;
+    info.textContent=`✓ SEO updated: "${seo.focusKeyword}" — ${p.name?.substring(0,45)}`;
+    info.style.color='var(--accent2)';
+    renderWixProducts();
+  }catch(e){
+    info.textContent='SEO Error: '+e.message;
+    info.style.color='var(--accent3)';
+  }
+}
+
+async function bulkUpdateSEO(){
+  if(!wixSelected.size) return;
+  const info=document.getElementById('wixProductsInfo');
+  const ids=[...wixSelected];
+  let done=0;
+  for(const id of ids){
+    const p=wixProducts.find(x=>x.id===id);
+    if(!p) continue;
+    info.textContent=`SEO Agent: ${done+1}/${ids.length} — ${p.name?.substring(0,40)}...`;
+    await runSEOOnOne(id);
+    done++;
+    await new Promise(r=>setTimeout(r,1000));
+  }
+  info.textContent=`✓ SEO updated for ${done} products`;
+  info.style.color='var(--accent2)';
+  clearWixSelection();
+}
+
+function loadMoreWixProducts(){ renderWixProducts(); }
 let amazonItems = JSON.parse(localStorage.getItem('bs_amz')||'[]');
 
 function saveAmazon(){ localStorage.setItem('bs_amz',JSON.stringify(amazonItems)); }
