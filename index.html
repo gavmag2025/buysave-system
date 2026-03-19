@@ -137,6 +137,7 @@ select option{background:var(--surface2)}
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab('browse')">📦 Browse &amp; Select <span class="tab-count g" id="tc-browse">—</span></div>
+  <div class="tab" onclick="switchTab('amazon')">🛒 Amazon Monitor <span class="tab-count b" id="tc-amz">0</span></div>
   <div class="tab" onclick="switchTab('watchlist')">👁 Watchlist <span class="tab-count b" id="tc-watch">0</span></div>
   <div class="tab" onclick="switchTab('alerts')">🚨 Alerts <span class="tab-count r" id="tc-alerts">0</span></div>
   <div class="tab" onclick="switchTab('publish')">🚀 Publish to Wix</div>
@@ -239,6 +240,41 @@ select option{background:var(--surface2)}
   </div>
 </div>
 
+<!-- AMAZON MONITOR -->
+<div class="panel" id="panel-amazon">
+  <div class="shdr">
+    <div class="stitle">Amazon.com <span>Product Monitor</span></div>
+  </div>
+  <div style="background:var(--surface);border:1px solid var(--accent4);padding:20px;margin-bottom:20px">
+    <div class="flabel" style="color:var(--accent4);margin-bottom:10px">🛒 Add Amazon.com Product URL</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:260px">
+        <div class="flabel">Amazon.com URL</div>
+        <input type="text" id="amzUrlInput" placeholder="https://www.amazon.com/dp/ASIN or full product URL...">
+      </div>
+      <div style="min-width:160px;max-width:200px">
+        <div class="flabel">Your Label (optional)</div>
+        <input type="text" id="amzLabelInput" placeholder="e.g. Mini PC resale">
+      </div>
+      <button class="btn btn-primary" onclick="fetchAmazonProduct()" id="amzFetchBtn">Fetch Product</button>
+    </div>
+    <div id="amzFetchStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:8px"></div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;line-height:1.8">
+      Paste any Amazon.com product URL → fetches name, price, availability &amp; image server-side.<br>
+      Get alerted when price changes &gt;5% or item goes unavailable. One-click publish to Wix.
+    </div>
+  </div>
+  <div class="shdr">
+    <div class="stitle">Monitored Products <span>(<span id="amzCount">0</span>)</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="syncAllAmazon()">↻ Sync All</button>
+      <button class="btn btn-danger btn-sm" onclick="clearAllAmazon()">Clear All</button>
+    </div>
+  </div>
+  <div id="amzEmpty" class="empty"><div class="empty-icon">🛒</div><div class="empty-text">No Amazon products monitored yet.<br>Paste a URL above to get started.</div></div>
+  <div class="pgrid" id="amzGrid"></div>
+</div>
+
 <!-- WATCHLIST -->
 <div class="panel" id="panel-watchlist">
   <div class="shdr">
@@ -332,34 +368,46 @@ select option{background:var(--surface2)}
   <div class="modal-sub" id="modalSub">Review settings before publishing</div>
 
   <div class="mfield"><label>Products (<span id="modalCount">0</span>)</label><div class="mplist" id="modalList"></div></div>
+
   <div class="mfield-row">
     <div class="mfield"><label>Your Markup %</label><input type="number" id="modalMarkup" value="30" min="5" max="300" oninput="updateModalPrices()"></div>
     <div class="mfield">
-      <label>Wix Collection <span style="color:var(--muted);font-weight:400">(optional)</span></label>
-      <select id="modalCollection" style="width:100%">
-        <option value="">— Loading your collections... —</option>
+      <label>Wix Collection</label>
+      <select id="modalCollection" style="width:100%"><option value="">— Loading collections... —</option></select>
+    </div>
+  </div>
+
+  <div class="mfield-row">
+    <div class="mfield">
+      <label>Brand</label>
+      <select id="modalBrand" style="width:100%"><option value="">— Loading brands... —</option></select>
+    </div>
+    <div class="mfield">
+      <label>Stock on Wix</label>
+      <select id="modalStock">
+        <option value="live">Use live JHB stock from feed</option>
+        <option value="instock">Always in stock (manual)</option>
       </select>
     </div>
   </div>
-  <div class="mfield"><label>SEO Copy Generation</label>
+
+  <div class="mfield"><label>SEO Agent</label>
     <select id="modalSeo">
-      <option value="auto">Auto-generate with Claude API (recommended)</option>
-      <option value="basic">Use supplier description as-is (faster)</option>
+      <option value="auto">Auto-generate full SEO package with Claude (recommended)</option>
+      <option value="basic">Use supplier description as-is (faster, no SEO)</option>
     </select>
   </div>
-  <div class="mfield"><label>Stock on Wix</label>
-    <select id="modalStock">
-      <option value="live">Use live JHB stock from Syntech feed</option>
-      <option value="instock">Set as always in stock (manage manually)</option>
-    </select>
+
+  <div class="mfield"><label>Extra SEO Context <span style="color:var(--muted);font-weight:400">(optional — helps Claude write better copy)</span></label>
+    <textarea id="modalCtx" rows="2" placeholder="e.g. load shedding ready, great for university students, home office, budget gaming..."></textarea>
   </div>
+
   <div class="mfield"><label>After Publishing</label>
     <select id="modalAfter">
       <option value="watch">Add to Watchlist (monitor price + stock)</option>
       <option value="none">Publish only</option>
     </select>
   </div>
-  <div class="mfield"><label>Extra context for SEO (optional)</label><textarea id="modalCtx" rows="2" placeholder="e.g. load shedding ready, home office, university student budget..."></textarea></div>
 
   <div id="publishProg" style="display:none">
     <div class="prog-wrap"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
@@ -507,13 +555,14 @@ function saveSettings(){ settings.defaultMarkup=document.getElementById('default
 function saveWix(){ settings.wixApiKey=document.getElementById('wixApiKey').value; settings.wixSiteId=document.getElementById('wixSiteId').value; localStorage.setItem('bs_cfg',JSON.stringify(settings)); document.getElementById('wixStatus').textContent='Saved.'; document.getElementById('wixStatus').style.color='var(--accent2)'; }
 
 function switchTab(id){
-  const tabs=['browse','watchlist','alerts','publish','settings'];
+  const tabs=['browse','amazon','watchlist','alerts','publish','settings'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===id));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
   if(id==='alerts'&&allProducts.length) buildAlerts();
   if(id==='watchlist') renderWatch();
   if(id==='publish') renderQueue();
+  if(id==='amazon') renderAmazonGrid();
 }
 
 async function loadFeed(){
@@ -893,14 +942,31 @@ function openPublishModal(){
 
 async function loadWixCollections(){
   const sel = document.getElementById('modalCollection');
-  sel.innerHTML = '<option value="">— Loading collections... —</option>';
+  const brandSel = document.getElementById('modalBrand');
+  sel.innerHTML = '<option value="">— Loading... —</option>';
+  brandSel.innerHTML = '<option value="">— Loading... —</option>';
   try{
+    // Load collections
     const data = await callRelay('getCollections');
     const cols = data.collections || [];
     sel.innerHTML = '<option value="">— No collection —</option>' +
       cols.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+
+    // Load brands
+    const bData = await callRelay('getBrands');
+    const brands = bData.brands || [];
+    brandSel.innerHTML = '<option value="">— No brand —</option>' +
+      brands.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+
+    // Pre-select brand if product has one
+    const prods=[...selectedSKUs].map(s=>allProducts.find(p=>p.sku===s)).filter(Boolean);
+    if(prods.length===1 && prods[0].brand){
+      const match = brands.find(b=>b.name.toLowerCase()===prods[0].brand.toLowerCase());
+      if(match) brandSel.value = match.id;
+    }
   }catch(e){
-    sel.innerHTML = '<option value="">— Could not load collections —</option>';
+    sel.innerHTML = '<option value="">— Could not load —</option>';
+    brandSel.innerHTML = '<option value="">— Could not load —</option>';
   }
 }
 
@@ -944,15 +1010,19 @@ async function startPublish(){
 
       if(seoMode==='auto'){
         try{
-          addLog(`  Generating SEO copy via relay...`);
+          addLog(`  SEO Agent generating copy...`);
           const yp=calcPrice(p.price);
           const sj = await callRelay('generateSEO', {
-            product: { name:p.name, price:yp, catTree:p.catTree, brand:p.brand, warranty:p.warranty, desc:p.desc },
+            product: { name:p.name, price:yp, catTree:p.catTree, brand:p.brand, warranty:p.warranty, desc:p.desc, sku:p.sku },
             extraContext: extraCtx
           });
           if(sj.description) description=sj.description;
           if(sj.title) productName=sj.title;
-          addLog(`  ✓ SEO copy generated`,'ok');
+          // Store SEO fields for Wix
+          if(sj.metaTitle) p._metaTitle=sj.metaTitle;
+          if(sj.metaDescription) p._metaDescription=sj.metaDescription;
+          if(sj.focusKeyword) p._focusKeyword=sj.focusKeyword;
+          addLog(`  ✓ SEO: "${productName}" | Focus: "${sj.focusKeyword||'—'}"`,'ok');
         }catch(seoErr){
           addLog(`  ⚠ SEO failed: ${seoErr.message}`,'warn');
         }
@@ -961,6 +1031,7 @@ async function startPublish(){
       // Step 2: Build product payload for relay
       const yp=calcPrice(p.price);
       const colId=document.getElementById('modalCollection').value||'';
+      const brandId=document.getElementById('modalBrand').value||'';
 
       const productPayload={
         name: productName,
@@ -972,7 +1043,11 @@ async function startPublish(){
         imageUrl: p.image||'',
         additionalImages: p.images||[],
         weight: p.weight||0,
-        collectionName: colId
+        collectionName: colId,
+        brandId: brandId,
+        metaTitle: p._metaTitle||'',
+        metaDescription: p._metaDescription||'',
+        focusKeyword: p._focusKeyword||''
       };
 
       // Step 2: Send to relay → Wix
@@ -1054,6 +1129,174 @@ function saveWix(){
   if(document.getElementById('wixStatus').textContent.indexOf('✓')>-1) return;
   document.getElementById('wixStatus').textContent='Saved.';
   document.getElementById('wixStatus').style.color='var(--accent2)';
+}
+
+// ============================================================
+// AMAZON MONITOR
+// ============================================================
+let amazonItems = JSON.parse(localStorage.getItem('bs_amz')||'[]');
+
+function saveAmazon(){ localStorage.setItem('bs_amz',JSON.stringify(amazonItems)); }
+
+async function fetchAmazonProduct(){
+  const url = document.getElementById('amzUrlInput').value.trim();
+  const label = document.getElementById('amzLabelInput').value.trim();
+  const btn = document.getElementById('amzFetchBtn');
+  const status = document.getElementById('amzFetchStatus');
+  if(!url){ alert('Paste an Amazon.com URL first.'); return; }
+
+  // Extract ASIN from URL
+  const asinMatch = url.match(/\/dp\/([A-Z0-9]{10})/i) || url.match(/\/gp\/product\/([A-Z0-9]{10})/i) || url.match(/asin=([A-Z0-9]{10})/i);
+  const asin = asinMatch ? asinMatch[1] : null;
+
+  btn.disabled=true; btn.textContent='Fetching...';
+  status.textContent='Fetching product data from Amazon...';
+  status.style.color='var(--muted2)';
+
+  try{
+    const data = await callRelay('fetchAmazon', { url: url, asin: asin });
+    if(!data || !data.name){
+      status.textContent='Could not extract product data. Try a different URL format.';
+      status.style.color='var(--accent3)';
+    } else {
+      // Check if already monitoring
+      if(amazonItems.find(a=>a.asin===data.asin||a.url===url)){
+        status.textContent='Already monitoring this product.';
+        status.style.color='var(--accent)';
+      } else {
+        amazonItems.push({
+          url: url,
+          asin: data.asin || asin || '',
+          name: label || data.name,
+          originalName: data.name,
+          price: data.price,
+          basePrice: data.price,
+          available: data.available,
+          image: data.image,
+          rating: data.rating,
+          addedAt: new Date().toISOString(),
+          lastSynced: new Date().toISOString(),
+          priceChange: 0,
+          status: data.available ? 'ok' : 'oos'
+        });
+        saveAmazon();
+        document.getElementById('amzUrlInput').value='';
+        document.getElementById('amzLabelInput').value='';
+        document.getElementById('tc-amz').textContent=amazonItems.length;
+        status.textContent=`✓ Added: ${data.name.substring(0,60)} — R${data.price||'N/A'} — ${data.available?'In Stock':'Out of Stock'}`;
+        status.style.color='var(--accent2)';
+        renderAmazonGrid();
+      }
+    }
+  }catch(e){
+    status.textContent='Error: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+  btn.disabled=false; btn.textContent='Fetch Product';
+}
+
+async function syncAllAmazon(){
+  if(!amazonItems.length) return;
+  const status=document.getElementById('amzFetchStatus');
+  status.textContent='Syncing all Amazon products...';
+  status.style.color='var(--muted2)';
+  const threshold=0.05;
+  let alerts=0;
+  for(let i=0;i<amazonItems.length;i++){
+    const item=amazonItems[i];
+    try{
+      const data=await callRelay('fetchAmazon',{url:item.url,asin:item.asin});
+      if(data&&data.name){
+        const prevPrice=item.price;
+        const prevAvail=item.available;
+        item.price=data.price;
+        item.available=data.available;
+        item.lastSynced=new Date().toISOString();
+        item.priceChange=prevPrice&&data.price ? ((data.price-prevPrice)/prevPrice) : 0;
+        if(!data.available){ item.status='oos'; alerts++; }
+        else if(Math.abs(item.priceChange)>threshold){ item.status='price'; alerts++; }
+        else item.status='ok';
+      }
+    }catch(e){ item.status='error'; }
+    await new Promise(r=>setTimeout(r,1500)); // be nice to Amazon
+  }
+  saveAmazon();
+  document.getElementById('tc-amz').textContent=amazonItems.length;
+  status.textContent=`✓ Synced ${amazonItems.length} products · ${alerts} alert${alerts!==1?'s':''}`;
+  status.style.color=alerts>0?'var(--accent)':'var(--accent2)';
+  renderAmazonGrid();
+}
+
+function removeAmazon(idx){
+  amazonItems.splice(idx,1);
+  saveAmazon();
+  document.getElementById('tc-amz').textContent=amazonItems.length;
+  renderAmazonGrid();
+}
+
+function clearAllAmazon(){
+  if(!confirm('Remove all Amazon monitored products?')) return;
+  amazonItems=[];
+  saveAmazon();
+  document.getElementById('tc-amz').textContent=0;
+  renderAmazonGrid();
+}
+
+function publishAmazonToWix(idx){
+  const item=amazonItems[idx];
+  if(!item) return;
+  // Load into selection and open publish modal
+  const pseudo={
+    sku: item.asin||'AMZ-'+Date.now(),
+    name: item.originalName||item.name,
+    price: item.price||0,
+    rrp: item.price||0,
+    jhb: item.available?99:0,
+    image: item.image||'',
+    images: [],
+    desc: `${item.originalName||item.name}. Available on Amazon.com. ASIN: ${item.asin||'N/A'}.`,
+    catTree: 'Amazon Products',
+    brand: '',
+    warranty: '',
+    source: 'amazon'
+  };
+  if(!allProducts.find(p=>p.sku===pseudo.sku)) allProducts.push(pseudo);
+  selectedSKUs.clear();
+  selectedSKUs.add(pseudo.sku);
+  openPublishModal();
+}
+
+function renderAmazonGrid(){
+  const grid=document.getElementById('amzGrid');
+  const empty=document.getElementById('amzEmpty');
+  document.getElementById('tc-amz').textContent=amazonItems.length;
+  if(!amazonItems.length){empty.style.display='block';grid.innerHTML='';return;}
+  empty.style.display='none';
+  grid.innerHTML=amazonItems.map((a,i)=>{
+    const priceChg=a.priceChange?((a.priceChange>0?'+':'')+Math.round(a.priceChange*100)+'%'):'';
+    const statusCol=a.status==='oos'?'var(--accent3)':a.status==='price'?'var(--accent)':a.status==='error'?'var(--accent3)':'var(--accent2)';
+    const statusTxt=a.status==='oos'?'OUT OF STOCK':a.status==='price'?'PRICE CHANGED':a.status==='error'?'FETCH ERROR':'IN STOCK';
+    return `<div class="pcard" style="border-color:${statusCol}20">
+      ${a.image?`<img class="pcard-img" src="${a.image}" onerror="this.style.display='none'">`:'<div class="pcard-img-ph">No Image</div>'}
+      <div class="pcard-body">
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:5px">
+          ${a.asin||'—'} <span style="background:var(--accent4);color:#000;padding:1px 5px;font-size:7px;margin-left:4px">AMAZON</span>
+        </div>
+        <div class="pcard-name">${(a.name||'').substring(0,65)}</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div class="pi" style="flex:1"><div class="pi-l">Price</div><div class="pi-v yours">${a.price?'$'+a.price:'N/A'}</div></div>
+          <div class="pi" style="flex:1"><div class="pi-l">Change</div><div class="pi-v" style="color:${a.priceChange>0?'var(--accent3)':a.priceChange<0?'var(--accent2)':'var(--muted2)'};font-size:14px">${priceChg||'—'}</div></div>
+          <div class="pi" style="flex:1"><div class="pi-l">Status</div><div style="font-family:var(--mono);font-size:8px;color:${statusCol};margin-top:4px">${statusTxt}</div></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-bottom:10px">Last synced: ${a.lastSynced?.split('T')[1]?.substring(0,5)||'—'}</div>
+      </div>
+      <div class="pcard-actions">
+        <button class="btn btn-wix btn-sm" onclick="publishAmazonToWix(${i})">🚀 Publish to Wix</button>
+        <a href="${a.url}" target="_blank"><button class="btn btn-ghost btn-sm">↗ Amazon</button></a>
+        <button class="btn btn-danger btn-sm" onclick="removeAmazon(${i})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // EXPORT
