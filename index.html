@@ -898,22 +898,17 @@ async function startPublish(){
 
       if(seoMode==='auto'){
         try{
-          addLog(`  Generating SEO copy...`);
-          const cleanDesc=p.desc.replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim().substring(0,800);
+          addLog(`  Generating SEO copy via relay...`);
           const yp=calcPrice(p.price);
-          const sr=await fetch('https://api.anthropic.com/v1/messages',{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,
-              messages:[{role:'user',content:`Write product content for BuySave (buysave.co.za), a South African tech store. Practical, value-focused, SA context. Return ONLY valid JSON no markdown: {"title":"SEO product title max 200 chars","description":"full HTML description 200-300 words using p and ul tags","shortDescription":"2 sentence summary"}. Product: ${p.name}. Price: R${yp}. Category: ${p.catTree}. Brand: ${p.brand}. Warranty: ${p.warranty}. Supplier desc: ${cleanDesc}. ${extraCtx?'Extra context: '+extraCtx:''}`}]
-            })
+          const sj = await callRelay('generateSEO', {
+            product: { name:p.name, price:yp, catTree:p.catTree, brand:p.brand, warranty:p.warranty, desc:p.desc },
+            extraContext: extraCtx
           });
-          const sd=await sr.json();
-          const sj=JSON.parse((sd.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
           if(sj.description) description=sj.description;
           if(sj.title) productName=sj.title;
           addLog(`  ✓ SEO copy generated`,'ok');
         }catch(seoErr){
-          addLog(`  ⚠ SEO failed, using supplier description`,'warn');
+          addLog(`  ⚠ SEO failed: ${seoErr.message}`,'warn');
         }
       }
 
