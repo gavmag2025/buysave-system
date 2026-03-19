@@ -912,20 +912,10 @@ async function startPublish(){
         }
       }
 
-      // Step 2: Upload image to Wix media
+      // Step 2: Build product payload for relay
       const yp=calcPrice(p.price);
       const colId=document.getElementById('modalCollection').value||'';
-      let imageUrl=p.image||'';
-      if(p.image){
-        addLog(`  Uploading image to Wix media...`);
-        try{
-          const imgRes=await callRelay('uploadImage',{imageUrl:p.image});
-          if(imgRes.success&&imgRes.url){ imageUrl=imgRes.url; addLog(`  ✓ Image uploaded`,'ok'); }
-          else addLog(`  ⚠ Image upload failed, skipping`,'warn');
-        }catch(e){ addLog(`  ⚠ Image skipped: ${e.message}`,'warn'); }
-      }
 
-      // Step 3: Build product payload for relay
       const productPayload={
         name: productName,
         description: description,
@@ -933,13 +923,13 @@ async function startPublish(){
         sku: p.sku,
         quantity: stockMode==='instock' ? 999 : p.jhb,
         visible: stockMode==='instock' || p.jhb>0,
-        imageUrl: imageUrl,
+        imageUrl: p.image||'',
         additionalImages: p.images||[],
         weight: p.weight||0,
         collectionName: colId
       };
 
-      // Step 3: Send to relay → Wix
+      // Step 2: Send to relay → Wix
       addLog(`  Publishing to Wix via relay...`);
       const result = await callRelay('createProduct', { product: productPayload });
 
