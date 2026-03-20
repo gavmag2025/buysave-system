@@ -1542,11 +1542,12 @@ const STD_INFO_SECTIONS = {
 
 async function bulkApplyInfoSections(){
   const toAdd = [];
+  // Import always first if selected
+  if(document.getElementById('sec_import').checked) toAdd.push(STD_INFO_SECTIONS.import);
   if(document.getElementById('sec_courier').checked) toAdd.push(STD_INFO_SECTIONS.courier);
   if(document.getElementById('sec_warranty').checked) toAdd.push(STD_INFO_SECTIONS.warranty);
   if(document.getElementById('sec_delivery').checked) toAdd.push(STD_INFO_SECTIONS.delivery);
   if(document.getElementById('sec_vat').checked) toAdd.push(STD_INFO_SECTIONS.vat);
-  if(document.getElementById('sec_import').checked) toAdd.push(STD_INFO_SECTIONS.import);
 
   if(!toAdd.length){ alert('Tick at least one section to add.'); return; }
 
@@ -1564,7 +1565,10 @@ async function bulkApplyInfoSections(){
       const existing = (p?.additionalInfoSections||[]).filter(s=>
         !reservedTitles.includes((s.title||'').toLowerCase())
       );
-      const finalSections = [...existing, ...toAdd];
+      // Import section always first, then other standard sections, then any custom existing ones
+      const importSections = toAdd.filter(s=>s.title.toLowerCase().includes('import'));
+      const otherSections = toAdd.filter(s=>!s.title.toLowerCase().includes('import'));
+      const finalSections = [...importSections, ...otherSections, ...existing];
       await callRelay('updateInfoSections',{
         productId: id,
         sections: finalSections
