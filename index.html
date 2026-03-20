@@ -1565,9 +1565,9 @@ async function bulkApplyInfoSections(){
         !reservedTitles.includes((s.title||'').toLowerCase())
       );
       const finalSections = [...existing, ...toAdd];
-      await callRelay('updateProduct',{
+      await callRelay('updateInfoSections',{
         productId: id,
-        product: { infoSectionsRaw: finalSections }
+        sections: finalSections
       });
       if(p) p.additionalInfoSections = finalSections;
       done++;
