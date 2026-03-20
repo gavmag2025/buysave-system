@@ -283,10 +283,65 @@ select option{background:var(--surface2)}
   <div class="bulk-bar" id="wixBulkBar" style="display:none">
     <div class="bulk-info" id="wixBulkInfo">0 selected</div>
     <div class="bulk-actions">
-      <button class="btn btn-success btn-sm" onclick="bulkTagWix('local')">🇿🇦 Tag as Local</button>
-      <button class="btn btn-ghost btn-sm" onclick="bulkTagWix('international')">✈ Tag as International</button>
+      <button class="btn btn-success btn-sm" onclick="bulkTagWix('local')">🇿🇦 Local</button>
+      <button class="btn btn-ghost btn-sm" onclick="bulkTagWix('international')">✈ International</button>
+      <button class="btn btn-primary btn-sm" onclick="showInfoSectionsPanel()">📋 Add Info Sections</button>
       <button class="btn btn-danger btn-sm" onclick="bulkTagWix('')">✕ Clear Tags</button>
     </div>
+  </div>
+
+  <!-- INFO SECTIONS PANEL -->
+  <div id="infoSectionsPanel" style="display:none;background:var(--surface);border:1px solid var(--accent4);padding:20px;margin-bottom:16px">
+    <div class="flabel" style="color:var(--accent4);margin-bottom:12px">📋 Add Standard Info Sections to Selected Products</div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:14px">Tick the sections to add. Existing sections will be preserved — only these will be added or updated.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:16px">
+
+      <label style="display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--border2);padding:12px;cursor:pointer">
+        <input type="checkbox" id="sec_courier" checked style="margin-top:3px;accent-color:var(--accent4)">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text);margin-bottom:4px">📦 Courier Insurance</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);line-height:1.6">Please note that this item might need courier insurance when sending which is 1.5% of the value of the item. We will bill separately for this via an invoice, in case you want to collect.</div>
+        </div>
+      </label>
+
+      <label style="display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--border2);padding:12px;cursor:pointer">
+        <input type="checkbox" id="sec_warranty" checked style="margin-top:3px;accent-color:var(--accent4)">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text);margin-bottom:4px">🛡️ Warranty</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);line-height:1.6">All products have a 1 year Carry In Warranty unless specified on the individual product page. Batteries are not covered under any warranty. Items will be checked before a decision is taken on the warranty.</div>
+        </div>
+      </label>
+
+      <label style="display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--border2);padding:12px;cursor:pointer">
+        <input type="checkbox" id="sec_delivery" checked style="margin-top:3px;accent-color:var(--accent4)">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text);margin-bottom:4px">🚚 Delivery Time</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);line-height:1.6">Delivery time is in business days. 1-3 for Local, 5-10 for International. Special import items ship next day from overseas warehouse (USA/China), taking 5-10 working days excluding customs. No extra customs charges.</div>
+        </div>
+      </label>
+
+      <label style="display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--border2);padding:12px;cursor:pointer">
+        <input type="checkbox" id="sec_vat" checked style="margin-top:3px;accent-color:var(--accent4)">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text);margin-bottom:4px">🧾 VAT Registered</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);line-height:1.6">We are VAT registered and can provide you with a VAT invoice to help you save!</div>
+        </div>
+      </label>
+
+      <label style="display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--accent5)33;padding:12px;cursor:pointer">
+        <input type="checkbox" id="sec_import" style="margin-top:3px;accent-color:var(--accent5)">
+        <div>
+          <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent5);margin-bottom:4px">✈ Special Import Product <span style="color:var(--muted);font-weight:400">(International products only)</span></div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);line-height:1.6">This is a SPECIAL IMPORT Product, with stock available at our supplier abroad. They allocate stock to us in their warehouse which is why you see In Stock above near the price. The price you see is the price you get with no extra VAT or import fees. Shipping is about 6-10 working days.</div>
+        </div>
+      </label>
+
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-wix" onclick="bulkApplyInfoSections()">✅ Apply to Selected Products</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('infoSectionsPanel').style.display='none'">Cancel</button>
+    </div>
+    <div id="infoSectionsStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:10px"></div>
   </div>
 
   <div id="wixProductsInfo" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:10px"></div>
@@ -1275,6 +1330,18 @@ function renderWixProducts(){
     const ribbonCol=ribbon.toLowerCase()==='international'?'var(--accent5)':ribbon.toLowerCase()==='local'?'var(--accent2)':'';
     const img=p.mainMedia?.image?.url||'';
     const price=p.priceData?.price||0;
+
+    // Check which standard sections already exist
+    const sections=(p.additionalInfoSections||[]).map(s=>(s.title||'').toLowerCase());
+    const has={
+      courier: sections.some(t=>t.includes('courier')||t.includes('insurance')),
+      warranty: sections.some(t=>t.includes('warrant')),
+      delivery: sections.some(t=>t.includes('deliver')),
+      vat: sections.some(t=>t.includes('vat')),
+      import: sections.some(t=>t.includes('import'))
+    };
+    const secBadge=(present,label)=>`<span title="${label}" style="font-family:var(--mono);font-size:7px;padding:1px 5px;margin-right:2px;border-radius:2px;background:${present?'var(--accent2)':'var(--surface2)'};color:${present?'#000':'var(--muted)'};border:1px solid ${present?'var(--accent2)':'var(--border2)'}">${label}</span>`;
+
     return `<div class="pcard ${isSel?'sel':''}" id="wp-${p.id}" onclick="toggleWixSelect('${p.id}',event)">
       <div class="pcard-sel-box" onclick="toggleWixSelect('${p.id}',event)">${isSel?'✓':''}</div>
       ${ribbon?`<div style="position:absolute;top:8px;left:8px;background:${ribbonCol};color:#000;font-family:var(--mono);font-size:7px;padding:2px 6px;font-weight:700;z-index:2">${ribbon.toUpperCase()}</div>`:''}
@@ -1287,11 +1354,14 @@ function renderWixProducts(){
           <div class="pi"><div class="pi-l">Stock</div><div class="pi-v cost">${p.stock?.quantity??'—'}</div></div>
           <div class="pi"><div class="pi-l">Visible</div><div class="pi-v" style="font-size:12px;color:${p.visible?'var(--accent2)':'var(--accent3)'}">${p.visible?'YES':'NO'}</div></div>
         </div>
+        <div style="margin-top:7px;margin-bottom:2px;line-height:2">
+          ${secBadge(has.courier,'📦 INS')}${secBadge(has.warranty,'🛡 WTY')}${secBadge(has.delivery,'🚚 DEL')}${secBadge(has.vat,'🧾 VAT')}${ribbon.toLowerCase()==='international'?secBadge(has.import,'✈ IMP'):''}
+        </div>
       </div>
       <div class="pcard-actions">
         <button class="btn btn-sm" style="background:${ribbon.toLowerCase()==='local'?'var(--accent2)':'var(--surface2)'};color:${ribbon.toLowerCase()==='local'?'#000':'var(--muted2)'};border:1px solid ${ribbon.toLowerCase()==='local'?'var(--accent2)':'var(--border2)'}" onclick="event.stopPropagation();tagProduct('${p.id}','local')">🇿🇦 Local</button>
         <button class="btn btn-sm" style="background:${ribbon.toLowerCase()==='international'?'var(--accent5)':'var(--surface2)'};color:${ribbon.toLowerCase()==='international'?'#000':'var(--muted2)'};border:1px solid ${ribbon.toLowerCase()==='international'?'var(--accent5)':'var(--border2)'}" onclick="event.stopPropagation();tagProduct('${p.id}','international')">✈ Intl</button>
-        ${ribbon?`<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();tagProduct('${p.id}','')">✕ Clear Tag</button>`:''}
+        ${ribbon?`<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();tagProduct('${p.id}','')">✕</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1400,7 +1470,117 @@ async function bulkUpdateSEO(){
   clearWixSelection();
 }
 
-function loadMoreWixProducts(){ renderWixProducts(); }
+function showInfoSectionsPanel(){
+  if(!wixSelected.size){ alert('Select at least one product first.'); return; }
+
+  // Figure out which sections are missing from ANY selected product
+  // If a section is missing from at least one selected product, tick it
+  const selectedProds = [...wixSelected].map(id=>wixProducts.find(x=>x.id===id)).filter(Boolean);
+
+  const missingCourier = selectedProds.some(p=>{
+    const t=(p.additionalInfoSections||[]).map(s=>(s.title||'').toLowerCase());
+    return !t.some(x=>x.includes('courier')||x.includes('insurance'));
+  });
+  const missingWarranty = selectedProds.some(p=>{
+    const t=(p.additionalInfoSections||[]).map(s=>(s.title||'').toLowerCase());
+    return !t.some(x=>x.includes('warrant'));
+  });
+  const missingDelivery = selectedProds.some(p=>{
+    const t=(p.additionalInfoSections||[]).map(s=>(s.title||'').toLowerCase());
+    return !t.some(x=>x.includes('deliver'));
+  });
+  const missingVat = selectedProds.some(p=>{
+    const t=(p.additionalInfoSections||[]).map(s=>(s.title||'').toLowerCase());
+    return !t.some(x=>x.includes('vat'));
+  });
+
+  const missingImport = selectedProds.some(p=>{
+    const t=(p.additionalInfoSections||[]).map(s=>(s.title||'').toLowerCase());
+    return !t.some(x=>x.includes('import'));
+  });
+  // Only auto-tick import if at least one selected product is tagged International
+  const hasIntlProduct = selectedProds.some(p=>(p.ribbons&&p.ribbons[0]?.text||'').toLowerCase()==='international');
+
+  document.getElementById('sec_courier').checked = missingCourier;
+  document.getElementById('sec_warranty').checked = missingWarranty;
+  document.getElementById('sec_delivery').checked = missingDelivery;
+  document.getElementById('sec_vat').checked = missingVat;
+  document.getElementById('sec_import').checked = hasIntlProduct && missingImport;
+
+  const allHave = !missingCourier && !missingWarranty && !missingDelivery && !missingVat && (!hasIntlProduct || !missingImport);
+  document.getElementById('infoSectionsStatus').textContent = allHave
+    ? '✓ All selected products already have all 4 sections. Tick any to re-apply/update.'
+    : `Auto-selected the sections missing from your ${selectedProds.length} selected product${selectedProds.length!==1?'s':''}.`;
+  document.getElementById('infoSectionsStatus').style.color = allHave ? 'var(--accent2)' : 'var(--muted2)';
+
+  document.getElementById('infoSectionsPanel').style.display='block';
+  document.getElementById('infoSectionsPanel').scrollIntoView({behavior:'smooth'});
+}
+
+const STD_INFO_SECTIONS = {
+  courier: {
+    title: 'Courier Insurance',
+    description: 'Please note that this item might need courier insurance when sending which is 1.5% of the value of the item. We will bill separately for this via an invoice, in case you want to collect.'
+  },
+  warranty: {
+    title: 'Warranty',
+    description: 'All products have a 1 year Carry In Warranty unless specified on the individual product page. Batteries are not covered under any warranty. Items will be checked before a decision is taken on the warranty.'
+  },
+  delivery: {
+    title: 'Delivery Time',
+    description: 'Delivery time is in business days. 1-3 for Local, 5-10 for International.\n\nWe keep stock locally (at our office or off-site warehouse for expensive goods) and internationally abroad (our suppliers reserve stock for us internationally).\n\nSpecial import items/products such as Beelink ship next day from the supplier\'s overseas warehouse (e.g. USA or China). These take around 5-10 working days, excluding customs stops. We don\'t charge anything extra for customs charges. The price you see is the price you pay.\n\nWe reserve the right to charge extra with a separate delivery quote if a customer\'s delivery area is far from a main city centre.'
+  },
+  vat: {
+    title: 'VAT Registered',
+    description: 'We are VAT registered and can provide you with a VAT invoice to help you save!'
+  },
+  import: {
+    title: 'Important - Special Import Product',
+    description: 'This is a SPECIAL IMPORT Product, with stock available at our supplier abroad. They allocate stock to us in their warehouse which is why you see In Stock above near the price. The price you see is the price you get with no extra VAT or import fees. We take care of that. Shipping is about 6-10 working days if all things "remain equal" and no customs checks are done.'
+  }
+};
+
+async function bulkApplyInfoSections(){
+  const toAdd = [];
+  if(document.getElementById('sec_courier').checked) toAdd.push(STD_INFO_SECTIONS.courier);
+  if(document.getElementById('sec_warranty').checked) toAdd.push(STD_INFO_SECTIONS.warranty);
+  if(document.getElementById('sec_delivery').checked) toAdd.push(STD_INFO_SECTIONS.delivery);
+  if(document.getElementById('sec_vat').checked) toAdd.push(STD_INFO_SECTIONS.vat);
+  if(document.getElementById('sec_import').checked) toAdd.push(STD_INFO_SECTIONS.import);
+
+  if(!toAdd.length){ alert('Tick at least one section to add.'); return; }
+
+  const status = document.getElementById('infoSectionsStatus');
+  const ids = [...wixSelected];
+  let done = 0;
+
+  const reservedTitles = Object.values(STD_INFO_SECTIONS).map(s=>s.title.toLowerCase());
+
+  for(const id of ids){
+    const p = wixProducts.find(x=>x.id===id);
+    status.textContent = `Updating ${done+1}/${ids.length}: ${p?.name?.substring(0,40)||id}...`;
+    status.style.color = 'var(--muted2)';
+    try{
+      const existing = (p?.additionalInfoSections||[]).filter(s=>
+        !reservedTitles.includes((s.title||'').toLowerCase())
+      );
+      const finalSections = [...existing, ...toAdd];
+      await callRelay('updateProduct',{
+        productId: id,
+        product: { infoSectionsRaw: finalSections }
+      });
+      if(p) p.additionalInfoSections = finalSections;
+      done++;
+    }catch(e){
+      status.textContent = `Error on ${p?.name?.substring(0,30)}: ${e.message}`;
+      status.style.color = 'var(--accent3)';
+    }
+    await new Promise(r=>setTimeout(r,400));
+  }
+  status.textContent = `✓ Info sections applied to ${done} product${done!==1?'s':''}`;
+  status.style.color = 'var(--accent2)';
+  renderWixProducts();
+}
 let amazonItems = JSON.parse(localStorage.getItem('bs_amz')||'[]');
 
 function saveAmazon(){ localStorage.setItem('bs_amz',JSON.stringify(amazonItems)); }
