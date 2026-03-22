@@ -352,6 +352,127 @@ select option{background:var(--surface2)}
   </div>
 </div>
 
+<!-- PRODUCT EDITOR MODAL -->
+<div id="productEditorOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;overflow-y:auto" onclick="if(event.target===this)closeProductEditor()">
+<div style="background:var(--bg);border:1px solid var(--border);max-width:860px;margin:40px auto;border-radius:4px;position:relative">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);background:var(--surface)">
+    <div>
+      <div class="stitle" style="margin:0">Edit <span id="editorProductName">Product</span></div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px" id="editorProductSku"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-wix" onclick="saveProductEditor()">💾 Save All Changes</button>
+      <button class="btn btn-ghost" onclick="closeProductEditor()">✕ Close</button>
+    </div>
+  </div>
+
+  <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+    <!-- LEFT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Basic Info -->
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px">
+        <div class="flabel" style="color:var(--accent4);margin-bottom:12px">📝 Basic Info</div>
+        <div class="mfield"><label>Product Name <span style="color:var(--muted);font-weight:400">(max 80 chars)</span></label>
+          <input type="text" id="ed_name" maxlength="80" placeholder="Product name..."></div>
+        <div class="mfield"><label>SKU</label>
+          <input type="text" id="ed_sku" placeholder="SKU..."></div>
+        <div class="mfield"><label>Brand</label>
+          <input type="text" id="ed_brand" placeholder="Brand name..."></div>
+        <div class="mfield"><label>Ribbon / Badge <span style="color:var(--muted);font-weight:400">(e.g. New, Sale, International)</span></label>
+          <input type="text" id="ed_ribbon" placeholder="e.g. International, New Arrival, Sale..."></div>
+        <div class="mfield"><label>Visible on site</label>
+          <select id="ed_visible"><option value="true">Yes — show on site</option><option value="false">No — hide from site</option></select></div>
+      </div>
+
+      <!-- Pricing -->
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px">
+        <div class="flabel" style="color:var(--accent2);margin-bottom:12px">💰 Pricing</div>
+        <div class="mfield"><label>Price (R incl VAT)</label>
+          <input type="number" id="ed_price" min="0" step="1" placeholder="0.00"></div>
+        <div class="mfield"><label>Compare-at Price / RRP (R) <span style="color:var(--muted);font-weight:400">(shows strikethrough)</span></label>
+          <input type="number" id="ed_comparePrice" min="0" step="1" placeholder="0.00"></div>
+        <div class="mfield-row">
+          <div class="mfield"><label>Discount Type</label>
+            <select id="ed_discountType">
+              <option value="NONE">No discount</option>
+              <option value="PERCENT">Percent %</option>
+              <option value="AMOUNT">Amount R</option>
+            </select>
+          </div>
+          <div class="mfield"><label>Discount Value</label>
+            <input type="number" id="ed_discountValue" min="0" step="1" placeholder="0"></div>
+        </div>
+      </div>
+
+      <!-- Inventory -->
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px">
+        <div class="flabel" style="color:var(--accent);margin-bottom:12px">📦 Inventory</div>
+        <div class="mfield"><label>Stock Quantity</label>
+          <input type="number" id="ed_qty" min="0" step="1" placeholder="0"></div>
+        <div class="mfield"><label>Weight (kg)</label>
+          <input type="number" id="ed_weight" min="0" step="0.1" placeholder="0.0"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Images -->
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px">
+        <div class="flabel" style="color:var(--accent5);margin-bottom:12px">🖼 Main Image</div>
+        <div id="ed_currentImage" style="margin-bottom:10px"></div>
+        <div class="mfield"><label>New Image URL <span style="color:var(--muted);font-weight:400">(paste any direct image URL)</span></label>
+          <input type="text" id="ed_imageUrl" placeholder="https://..."></div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);line-height:1.7">To add images, paste a direct image URL above. The image will be added to the product on save.</div>
+      </div>
+
+      <!-- SEO -->
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px">
+        <div class="flabel" style="color:var(--accent3);margin-bottom:12px">🔍 SEO</div>
+        <div class="mfield"><label>SEO Title Tag <span style="color:var(--muted);font-weight:400">(max 60 chars)</span></label>
+          <input type="text" id="ed_metaTitle" maxlength="60" placeholder="SEO title..."></div>
+        <div class="mfield"><label>Meta Description <span style="color:var(--muted);font-weight:400">(max 155 chars)</span></label>
+          <textarea id="ed_metaDesc" rows="2" maxlength="155" placeholder="Meta description..."></textarea></div>
+        <div class="mfield"><label>Focus Keyword</label>
+          <input type="text" id="ed_focusKw" placeholder="e.g. mini PC South Africa"></div>
+      </div>
+
+      <!-- Origin Tag -->
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px">
+        <div class="flabel" style="color:var(--accent4);margin-bottom:12px">🌍 Product Origin</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm" id="ed_localBtn" onclick="setEditorOrigin('local')" style="flex:1">🇿🇦 Local Stock</button>
+          <button class="btn btn-sm" id="ed_intlBtn" onclick="setEditorOrigin('international')" style="flex:1">✈ International</button>
+          <button class="btn btn-danger btn-sm" onclick="setEditorOrigin('')">✕</button>
+        </div>
+        <div id="ed_originStatus" style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">No origin tag set</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DESCRIPTION — full width -->
+  <div style="padding:0 24px 24px">
+    <div style="background:var(--surface);border:1px solid var(--border);padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="flabel" style="color:var(--accent2)">📄 Product Description (HTML)</div>
+        <button class="btn btn-primary btn-sm" onclick="runEditorSEO()">✨ Generate with SEO Agent</button>
+      </div>
+      <textarea id="ed_description" rows="10" style="width:100%;font-family:var(--mono);font-size:11px;resize:vertical" placeholder="Product description (HTML supported — use &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt; etc)..."></textarea>
+    </div>
+  </div>
+
+  <!-- SAVE STATUS -->
+  <div style="padding:0 24px 24px">
+    <div id="editorStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted);min-height:20px"></div>
+  </div>
+
+</div>
+</div>
+
 <!-- AMAZON MONITOR -->
 <div class="panel" id="panel-amazon">
   <div class="shdr">
@@ -1342,11 +1463,11 @@ function renderWixProducts(){
     };
     const secBadge=(present,label)=>`<span title="${label}" style="font-family:var(--mono);font-size:7px;padding:1px 5px;margin-right:2px;border-radius:2px;background:${present?'var(--accent2)':'var(--surface2)'};color:${present?'#000':'var(--muted)'};border:1px solid ${present?'var(--accent2)':'var(--border2)'}">${label}</span>`;
 
-    return `<div class="pcard ${isSel?'sel':''}" id="wp-${p.id}" onclick="toggleWixSelect('${p.id}',event)">
+    return `<div class="pcard ${isSel?'sel':''}" id="wp-${p.id}">
       <div class="pcard-sel-box" onclick="toggleWixSelect('${p.id}',event)">${isSel?'✓':''}</div>
       ${ribbon?`<div style="position:absolute;top:8px;left:8px;background:${ribbonCol};color:#000;font-family:var(--mono);font-size:7px;padding:2px 6px;font-weight:700;z-index:2">${ribbon.toUpperCase()}</div>`:''}
-      ${img?`<img class="pcard-img" src="${img}" onerror="this.style.display='none'">`:'<div class="pcard-img-ph">No Image</div>'}
-      <div class="pcard-body">
+      ${img?`<img class="pcard-img" src="${img}" onerror="this.style.display='none'" onclick="openProductEditor('${p.id}')" style="cursor:pointer">`:'<div class="pcard-img-ph" onclick="openProductEditor(\'${p.id}\')" style="cursor:pointer">Click to Edit</div>'}
+      <div class="pcard-body" onclick="openProductEditor('${p.id}')" style="cursor:pointer">
         <div class="pcard-sku">${p.sku||'—'} <span style="font-family:var(--mono);font-size:7px;padding:1px 5px;background:var(--accent4);color:#000;margin-left:4px">WIX</span></div>
         <div class="pcard-name">${(p.name||'').substring(0,65)}</div>
         <div class="price-row">
@@ -1647,6 +1768,135 @@ async function saveWixQty(id){
   }catch(e){
     if(btn){ btn.textContent='✗'; btn.disabled=false; }
     status.textContent='Stock update failed: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+}
+
+// ============================================================
+// PRODUCT EDITOR
+// ============================================================
+let editorProductId = null;
+
+function openProductEditor(id){
+  const p = wixProducts.find(x=>x.id===id);
+  if(!p) return;
+  editorProductId = id;
+  document.getElementById('editorProductName').textContent = (p.name||'').substring(0,40);
+  document.getElementById('editorProductSku').textContent = 'ID: '+p.id+' | SKU: '+(p.sku||'—');
+  document.getElementById('ed_name').value = p.name||'';
+  document.getElementById('ed_sku').value = p.sku||'';
+  document.getElementById('ed_brand').value = p.brand||'';
+  document.getElementById('ed_ribbon').value = p.ribbons?.[0]?.text||'';
+  document.getElementById('ed_visible').value = p.visible===false?'false':'true';
+  document.getElementById('ed_price').value = p.priceData?.price||'';
+  document.getElementById('ed_comparePrice').value = p.priceData?.compareAtPrice||'';
+  document.getElementById('ed_discountType').value = p.discount?.type||'NONE';
+  document.getElementById('ed_discountValue').value = p.discount?.value||'';
+  document.getElementById('ed_qty').value = p.stock?.quantity??'';
+  document.getElementById('ed_weight').value = p.weight||'';
+  document.getElementById('ed_description').value = p.description||'';
+  document.getElementById('ed_imageUrl').value = '';
+  document.getElementById('ed_metaTitle').value = p.seoData?.tags?.find(t=>t.type==='title')?.children||'';
+  document.getElementById('ed_metaDesc').value = p.seoData?.tags?.find(t=>t.props?.name==='description')?.props?.content||'';
+  document.getElementById('ed_focusKw').value = p.seoData?.tags?.find(t=>t.props?.name==='keywords')?.props?.content||'';
+  document.getElementById('editorStatus').textContent = '';
+  const imgUrl = p.mainMedia?.image?.url||'';
+  document.getElementById('ed_currentImage').innerHTML = imgUrl
+    ? `<img src="${imgUrl}" style="width:100%;max-height:140px;object-fit:contain;background:var(--surface2);border:1px solid var(--border2)">`
+    : '<div style="font-family:var(--mono);font-size:9px;color:var(--muted)">No image currently set</div>';
+  setEditorOrigin((p.ribbons?.[0]?.text||'').toLowerCase(), true);
+  document.getElementById('productEditorOverlay').style.display='block';
+  document.body.style.overflow='hidden';
+}
+
+function closeProductEditor(){
+  document.getElementById('productEditorOverlay').style.display='none';
+  document.body.style.overflow='';
+  editorProductId=null;
+}
+
+function setEditorOrigin(val, silent){
+  const lb=document.getElementById('ed_localBtn');
+  const ib=document.getElementById('ed_intlBtn');
+  const st=document.getElementById('ed_originStatus');
+  const ri=document.getElementById('ed_ribbon');
+  lb.style.background=val==='local'?'var(--accent2)':'var(--surface2)';
+  lb.style.color=val==='local'?'#000':'var(--muted2)';
+  ib.style.background=val==='international'?'var(--accent5)':'var(--surface2)';
+  ib.style.color=val==='international'?'#000':'var(--muted2)';
+  if(val==='local'){st.textContent='🇿🇦 Tagged as Local Stock';st.style.color='var(--accent2)';ri.value='Local';}
+  else if(val==='international'){st.textContent='✈ Tagged as International Import';st.style.color='var(--accent5)';ri.value='International';}
+  else if(!silent){st.textContent='No origin tag set';st.style.color='var(--muted)';ri.value='';}
+}
+
+async function runEditorSEO(){
+  const p=wixProducts.find(x=>x.id===editorProductId);
+  if(!p) return;
+  const status=document.getElementById('editorStatus');
+  status.textContent='✨ SEO Agent generating copy...';
+  status.style.color='var(--muted2)';
+  try{
+    const seo=await callRelay('generateSEO',{
+      product:{name:document.getElementById('ed_name').value||p.name,price:document.getElementById('ed_price').value||p.priceData?.price||0,catTree:'',brand:document.getElementById('ed_brand').value||p.brand||'',warranty:'',desc:document.getElementById('ed_description').value||p.description||'',sku:p.sku||''},
+      extraContext:''
+    });
+    if(seo.description) document.getElementById('ed_description').value=seo.description;
+    if(seo.title) document.getElementById('ed_name').value=seo.title;
+    if(seo.titleTag) document.getElementById('ed_metaTitle').value=seo.titleTag;
+    if(seo.metaDescription) document.getElementById('ed_metaDesc').value=seo.metaDescription;
+    if(seo.focusKeyword) document.getElementById('ed_focusKw').value=seo.focusKeyword;
+    status.textContent=`✓ SEO generated — focus: "${seo.focusKeyword||'—'}"`;
+    status.style.color='var(--accent2)';
+  }catch(e){
+    status.textContent='SEO failed: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+}
+
+async function saveProductEditor(){
+  if(!editorProductId) return;
+  const status=document.getElementById('editorStatus');
+  status.textContent='Saving...'; status.style.color='var(--muted2)';
+  const name=document.getElementById('ed_name').value.trim();
+  const sku=document.getElementById('ed_sku').value.trim();
+  const brand=document.getElementById('ed_brand').value.trim();
+  const ribbon=document.getElementById('ed_ribbon').value.trim();
+  const visible=document.getElementById('ed_visible').value==='true';
+  const price=parseFloat(document.getElementById('ed_price').value)||0;
+  const comparePrice=parseFloat(document.getElementById('ed_comparePrice').value)||0;
+  const discountType=document.getElementById('ed_discountType').value;
+  const discountValue=parseFloat(document.getElementById('ed_discountValue').value)||0;
+  const qty=parseInt(document.getElementById('ed_qty').value);
+  const weight=parseFloat(document.getElementById('ed_weight').value)||0;
+  const description=document.getElementById('ed_description').value;
+  const imageUrl=document.getElementById('ed_imageUrl').value.trim();
+  const metaTitle=document.getElementById('ed_metaTitle').value.trim();
+  const metaDesc=document.getElementById('ed_metaDesc').value.trim();
+  const focusKw=document.getElementById('ed_focusKw').value.trim();
+  try{
+    const p=wixProducts.find(x=>x.id===editorProductId);
+    const product={name,sku,brand,visible,description,weight,ribbons:ribbon?[{text:ribbon}]:[]};
+    if(price>0) product.price=price;
+    if(comparePrice>0) product.comparePrice=comparePrice;
+    if(discountType!=='NONE') product.discount={type:discountType,value:discountValue};
+    if(metaTitle||metaDesc||focusKw){product.metaTitle=metaTitle;product.metaDescription=metaDesc;product.focusKeyword=focusKw;}
+    product.existingInfoSections=p?.additionalInfoSections||[];
+    status.textContent='Updating product...';
+    await callRelay('updateProduct',{productId:editorProductId,product});
+    if(!isNaN(qty)&&qty>=0){status.textContent='Updating stock...';await callRelay('updateStock',{productId:editorProductId,quantity:qty});}
+    if(imageUrl){status.textContent='Adding image...';await callRelay('uploadImage',{productId:editorProductId,imageUrl});}
+    if(p){
+      p.name=name;p.sku=sku;p.brand=brand;p.visible=visible;p.description=description;p.weight=weight;
+      p.ribbons=ribbon?[{text:ribbon}]:[];
+      if(price>0&&p.priceData) p.priceData.price=price;
+      if(!isNaN(qty)&&p.stock) p.stock.quantity=qty;
+    }
+    status.textContent='✓ All changes saved!';
+    status.style.color='var(--accent2)';
+    renderWixProducts();
+    setTimeout(()=>{status.textContent='';},3000);
+  }catch(e){
+    status.textContent='✗ Save failed: '+e.message;
     status.style.color='var(--accent3)';
   }
 }
