@@ -1357,6 +1357,27 @@ function renderWixProducts(){
         <div style="margin-top:7px;margin-bottom:2px;line-height:2">
           ${secBadge(has.courier,'📦 INS')}${secBadge(has.warranty,'🛡 WTY')}${secBadge(has.delivery,'🚚 DEL')}${secBadge(has.vat,'🧾 VAT')}${ribbon.toLowerCase()==='international'?secBadge(has.import,'✈ IMP'):''}
         </div>
+        <!-- Inline price + qty editors -->
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:flex-end" onclick="event.stopPropagation()">
+          <div style="flex:1">
+            <div class="flabel" style="font-size:7px;margin-bottom:2px">PRICE (R)</div>
+            <div style="display:flex;gap:3px">
+              <input type="number" id="price-${p.id}" value="${price}" min="0" step="1"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 6px;border-radius:2px"
+                onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')saveWixPrice('${p.id}')">
+              <button class="btn btn-success btn-sm" style="padding:2px 7px;font-size:9px" onclick="event.stopPropagation();saveWixPrice('${p.id}')">✓</button>
+            </div>
+          </div>
+          <div style="flex:1">
+            <div class="flabel" style="font-size:7px;margin-bottom:2px">QTY</div>
+            <div style="display:flex;gap:3px">
+              <input type="number" id="qty-${p.id}" value="${p.stock?.quantity??0}" min="0" step="1"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 6px;border-radius:2px"
+                onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter')saveWixQty('${p.id}')">
+              <button class="btn btn-primary btn-sm" style="padding:2px 7px;font-size:9px" onclick="event.stopPropagation();saveWixQty('${p.id}')">✓</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="pcard-actions">
         <button class="btn btn-sm" style="background:${ribbon.toLowerCase()==='local'?'var(--accent2)':'var(--surface2)'};color:${ribbon.toLowerCase()==='local'?'#000':'var(--muted2)'};border:1px solid ${ribbon.toLowerCase()==='local'?'var(--accent2)':'var(--border2)'}" onclick="event.stopPropagation();tagProduct('${p.id}','local')">🇿🇦 Local</button>
@@ -1585,6 +1606,51 @@ async function bulkApplyInfoSections(){
   status.style.color = 'var(--accent2)';
   renderWixProducts();
 }
+
+async function saveWixPrice(id){
+  const input = document.getElementById('price-'+id);
+  const btn = input ? input.nextElementSibling : null;
+  const newPrice = parseFloat(input?.value);
+  if(!newPrice||newPrice<=0){ alert('Enter a valid price.'); return; }
+  const status = document.getElementById('wixProductsInfo');
+  if(btn){ btn.textContent='...'; btn.disabled=true; }
+  try{
+    await callRelay('updatePrice',{ productId:id, price:newPrice });
+    const p=wixProducts.find(x=>x.id===id);
+    if(p&&p.priceData) p.priceData.price=newPrice;
+    if(btn){ btn.textContent='✓'; btn.style.background='var(--accent2)'; btn.style.color='#000'; }
+    status.textContent=`✓ Price updated to R${newPrice.toLocaleString()}`;
+    status.style.color='var(--accent2)';
+    setTimeout(()=>{ if(btn){ btn.textContent='✓'; btn.disabled=false; btn.style.background=''; btn.style.color=''; } },2000);
+  }catch(e){
+    if(btn){ btn.textContent='✗'; btn.disabled=false; }
+    status.textContent='Price update failed: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+}
+
+async function saveWixQty(id){
+  const input = document.getElementById('qty-'+id);
+  const btn = input ? input.nextElementSibling : null;
+  const newQty = parseInt(input?.value);
+  if(isNaN(newQty)||newQty<0){ alert('Enter a valid quantity (0 or more).'); return; }
+  const status = document.getElementById('wixProductsInfo');
+  if(btn){ btn.textContent='...'; btn.disabled=true; }
+  try{
+    await callRelay('updateStock',{ productId:id, quantity:newQty });
+    const p=wixProducts.find(x=>x.id===id);
+    if(p){ if(!p.stock) p.stock={}; p.stock.quantity=newQty; }
+    if(btn){ btn.textContent='✓'; btn.style.background='var(--accent2)'; btn.style.color='#000'; }
+    status.textContent=`✓ Stock updated to ${newQty} units`;
+    status.style.color='var(--accent2)';
+    setTimeout(()=>{ if(btn){ btn.textContent='✓'; btn.disabled=false; btn.style.background=''; btn.style.color=''; } },2000);
+  }catch(e){
+    if(btn){ btn.textContent='✗'; btn.disabled=false; }
+    status.textContent='Stock update failed: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+}
+
 let amazonItems = JSON.parse(localStorage.getItem('bs_amz')||'[]');
 
 function saveAmazon(){ localStorage.setItem('bs_amz',JSON.stringify(amazonItems)); }
