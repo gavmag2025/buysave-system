@@ -1660,12 +1660,13 @@ function renderWatch(){
       :`<span class="chg-nil">—</span>`;
 
     // Stock columns — different for Esquire vs Syntech
+    const esquireColor = w.available ? 'var(--accent2)' : 'var(--accent3)';
     const jhbCol = isEsquire
-      ? `<span style="font-family:var(--mono);font-size:9px;color:${w.available?'var(--accent2)':'var(--accent3)'}">${w.esquireStock||'—'}</span>`
+      ? `<span style="font-family:var(--mono);font-size:9px;color:${esquireColor}">${w.esquireStock||'—'}</span>`
       : `<span style="font-family:var(--cond);font-size:15px;font-weight:700">${w.currentJhb??'?'}</span>`;
-    const cptCol = isEsquire ? `<span style="font-family:var(--mono);font-size:8px;color:var(--muted)">N/A</span>` : `<span style="font-family:var(--mono);font-size:10px;color:var(--muted2)">${w.currentCpt??'?'}</span>`;
-    const dbnCol = isEsquire ? `<span style="font-family:var(--mono);font-size:8px;color:var(--muted)">N/A</span>` : `<span style="font-family:var(--mono);font-size:10px;color:var(--muted2)">${w.currentDbn??'?'}</span>`;
-    const stockChg = isEsquire ? `<span class="chg-nil">—</span>` : (w.stockDelta?(w.stockDelta>0?`<span class="chg-dn">+${w.stockDelta}</span>`:`<span class="chg-up">${w.stockDelta}</span>`):`<span class="chg-nil">—</span>`);
+    const cptCol = isEsquire ? '<span style="font-family:var(--mono);font-size:8px;color:var(--muted)">N/A</span>' : `<span style="font-family:var(--mono);font-size:10px;color:var(--muted2)">${w.currentCpt??'?'}</span>`;
+    const dbnCol = isEsquire ? '<span style="font-family:var(--mono);font-size:8px;color:var(--muted)">N/A</span>' : `<span style="font-family:var(--mono);font-size:10px;color:var(--muted2)">${w.currentDbn??'?'}</span>`;
+    const stockChg = isEsquire ? '<span class="chg-nil">—</span>' : (w.stockDelta?(w.stockDelta>0?`<span class="chg-dn">+${w.stockDelta}</span>`:`<span class="chg-up">${w.stockDelta}</span>`):'<span class="chg-nil">—</span>');
 
     return `<tr>
       <td><div style="font-weight:600;font-size:12px;max-width:200px">${w.name.substring(0,52)}${w.name.length>52?'...':''}</div>
@@ -2980,6 +2981,9 @@ async function pushBlockToProduct(){
 
 // Init CSS preview on load
 document.addEventListener('DOMContentLoaded',()=>{ setTimeout(updateCSSPreview,100); });
+
+// EXPORT
+function exportSel(){
   const items=selectedSKUs.size>0?allProducts.filter(p=>selectedSKUs.has(p.sku)):filteredProducts.slice(0,1000);
   const hdrs=['SKU','Name','Brand','Cost excl VAT','RRP incl VAT','Your Price','JHB','CPT','DBN','Margin%','Categories','EAN','Warranty','Image'];
   const rows=items.map(p=>[`"${p.sku}"`,`"${p.name}"`,`"${p.brand}"`,p.price,p.rrp,calcPrice(p.price),p.jhb,p.cpt,p.dbn,p.margin,`"${p.categories}"`,p.ean,`"${p.warranty}"`,`"${p.image}"`].join(','));
