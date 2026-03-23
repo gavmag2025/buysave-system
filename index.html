@@ -140,7 +140,8 @@ select option{background:var(--surface2)}
   <div class="tab" onclick="switchTab('mywix')">🏪 My Wix Products <span class="tab-count g" id="tc-mywix">0</span></div>
   <div class="tab" onclick="switchTab('amazon')">🛒 Amazon Monitor <span class="tab-count b" id="tc-amz">0</span></div>
   <div class="tab" onclick="switchTab('watchlist')">👁 Watchlist <span class="tab-count b" id="tc-watch">0</span></div>
-  <div class="tab" onclick="switchTab('alerts')">🚨 Alerts <span class="tab-count r" id="tc-alerts">0</span></div>
+  <div class="tab" onclick="switchTab('alerts')">🇿🇦 Competitor Prices <span class="tab-count r" id="tc-alerts">0</span></div>
+  <div class="tab" onclick="switchTab('seo')">🔍 SEO Agent</div>
   <div class="tab" onclick="switchTab('publish')">🚀 Publish to Wix</div>
   <div class="tab" onclick="switchTab('settings')">⚙ Settings</div>
 </div>
@@ -529,13 +530,241 @@ select option{background:var(--surface2)}
   </div>
 </div>
 
-<!-- ALERTS -->
+<!-- COMPETITOR INTELLIGENCE -->
 <div class="panel" id="panel-alerts">
   <div class="shdr">
-    <div class="stitle">Stock &amp; Price <span>Alerts</span></div>
-    <button class="btn btn-ghost btn-sm" onclick="buildAlerts()">↻ Refresh</button>
+    <div class="stitle">🇿🇦 Competitor <span>Price Intelligence</span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="syncAllCompetitors()" id="compSyncBtn">↻ Sync All Prices</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearAllCompetitors()">Clear All</button>
+    </div>
   </div>
-  <div id="alertsContainer"><div class="empty"><div class="empty-icon">🚨</div><div class="empty-text">Load feed first.</div></div></div>
+
+  <!-- SETTINGS BAR -->
+  <div style="background:var(--surface);border:1px solid var(--border);padding:14px 16px;margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+    <div>
+      <div class="flabel" style="margin-bottom:6px">Alert when competitor is cheaper by</div>
+      <select id="compThreshold" style="min-width:140px">
+        <option value="0" selected>Any amount</option>
+        <option value="5">More than 5%</option>
+        <option value="10">More than 10%</option>
+        <option value="15">More than 15%</option>
+      </select>
+    </div>
+    <div>
+      <div class="flabel" style="margin-bottom:6px">Competitors to monitor</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;cursor:pointer"><input type="checkbox" id="comp_takealot" checked style="accent-color:var(--accent4)"> Takealot</label>
+        <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;cursor:pointer"><input type="checkbox" id="comp_evetech" checked style="accent-color:var(--accent4)"> Evetech</label>
+        <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;cursor:pointer"><input type="checkbox" id="comp_wootware" checked style="accent-color:var(--accent4)"> Wootware</label>
+        <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;cursor:pointer"><input type="checkbox" id="comp_incredible" style="accent-color:var(--accent4)"> Incredible Connection</label>
+        <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:10px;cursor:pointer"><input type="checkbox" id="comp_pricecheck" checked style="accent-color:var(--accent4)"> PriceCheck</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD PRODUCT TO MONITOR -->
+  <div style="background:var(--surface);border:1px solid var(--accent3);padding:16px;margin-bottom:16px">
+    <div class="flabel" style="color:var(--accent3);margin-bottom:10px">+ Add Product to Monitor</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1;min-width:200px">
+        <div class="flabel">Your Product Name / SKU</div>
+        <input type="text" id="compProductName" placeholder="e.g. KAMRUI Pinova P1 Mini PC AMD Ryzen 4300U">
+      </div>
+      <div style="min-width:120px;max-width:140px">
+        <div class="flabel">Your Price (R)</div>
+        <input type="number" id="compMyPrice" placeholder="7999" min="0">
+      </div>
+      <button class="btn btn-primary" onclick="addCompetitorProduct()" id="compAddBtn">Search Competitors</button>
+    </div>
+    <div style="margin-top:10px">
+      <div class="flabel" style="margin-bottom:6px">Or load from your Wix products</div>
+      <button class="btn btn-ghost btn-sm" onclick="loadWixForComp()">📦 Load My Wix Products</button>
+      <select id="compWixSelect" style="min-width:260px;display:none" onchange="prefillCompFromWix()">
+        <option value="">— Select a product —</option>
+      </select>
+    </div>
+    <div id="compAddStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:8px"></div>
+  </div>
+
+  <!-- MONITORED PRODUCTS -->
+  <div id="compEmpty" class="empty"><div class="empty-icon">🇿🇦</div><div class="empty-text">No products being monitored yet.<br>Add a product above to start tracking competitor prices.</div></div>
+  <div id="compGrid"></div>
+</div>
+
+<!-- SEO AGENT -->
+<div class="panel" id="panel-seo">
+  <div class="shdr">
+    <div class="stitle">🔍 SEO <span>Agent</span></div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--muted2)">Powered by Claude AI · buysave.co.za</div>
+  </div>
+
+  <!-- SUB TABS -->
+  <div style="display:flex;gap:2px;margin-bottom:20px;flex-wrap:wrap">
+    <button class="btn btn-primary btn-sm" id="seotab-gsc" onclick="switchSeoTab('gsc')" style="border-radius:0">📊 GSC Overview</button>
+    <button class="btn btn-ghost btn-sm" id="seotab-audit" onclick="switchSeoTab('audit')" style="border-radius:0">🏥 Site Audit</button>
+    <button class="btn btn-ghost btn-sm" id="seotab-keywords" onclick="switchSeoTab('keywords')" style="border-radius:0">🔑 Keyword Explorer</button>
+    <button class="btn btn-ghost btn-sm" id="seotab-rank" onclick="switchSeoTab('rank')" style="border-radius:0">📈 Rank Tracker</button>
+    <button class="btn btn-ghost btn-sm" id="seotab-onpage" onclick="switchSeoTab('onpage')" style="border-radius:0">📄 On-Page Audit</button>
+    <button class="btn btn-ghost btn-sm" id="seotab-content" onclick="switchSeoTab('content')" style="border-radius:0">✍ Content Gap</button>
+    <button class="btn btn-ghost btn-sm" id="seotab-backlinks" onclick="switchSeoTab('backlinks')" style="border-radius:0">🔗 Backlinks</button>
+  </div>
+
+  <!-- GSC OVERVIEW -->
+  <div id="seosec-gsc">
+    <div style="background:var(--surface);border:1px solid var(--accent2);padding:16px;margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent2);margin-bottom:10px">📊 Google Search Console — Live buysave.co.za Data</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">GSC Property</div>
+          <input type="text" id="gscProperty" value="sc-domain:buysave.co.za" placeholder="sc-domain:buysave.co.za">
+        </div>
+        <div style="min-width:120px">
+          <div class="flabel">Date Range</div>
+          <select id="gscDays">
+            <option value="7">Last 7 days</option>
+            <option value="28" selected>Last 28 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </div>
+        <button class="btn btn-success" onclick="loadGSCData()" id="gscBtn">📊 Load GSC Data</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">Pulls real data from your Google Search Console — clicks, impressions, CTR, average position, top queries and pages.</div>
+    </div>
+    <div id="gscResults"></div>
+  </div>
+
+  <!-- SITE AUDIT -->
+  <div id="seosec-audit">
+    <div style="background:var(--surface);border:1px solid var(--accent3);padding:16px;margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent3);margin-bottom:10px">🏥 Site Audit — crawl &amp; analyse buysave.co.za</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">URL to audit</div>
+          <input type="text" id="auditUrl" value="https://www.buysave.co.za" placeholder="https://www.buysave.co.za/page">
+        </div>
+        <div style="min-width:140px">
+          <div class="flabel">Audit depth</div>
+          <select id="auditDepth">
+            <option value="page">Single page</option>
+            <option value="site" selected>Full site overview</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="runSiteAudit()" id="auditBtn">🏥 Run Audit</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px;line-height:1.7">Crawls the page server-side → Claude AI analyses 50+ SEO factors including title tags, meta descriptions, H1/H2 structure, schema markup, page speed signals, internal linking, keyword density, mobile readiness, and more.</div>
+    </div>
+    <div id="auditProgress" style="display:none;margin-bottom:16px">
+      <div class="prog-wrap"><div class="prog-fill" id="auditProgFill" style="width:0%"></div></div>
+      <div class="prog-text" id="auditProgText">Starting audit...</div>
+    </div>
+    <div id="auditResults"></div>
+  </div>
+
+  <!-- KEYWORD EXPLORER -->
+  <div id="seosec-keywords" style="display:none">
+    <div style="background:var(--surface);border:1px solid var(--accent2);padding:16px;margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent2);margin-bottom:10px">🔑 Keyword Explorer — SA search opportunities</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">Seed keyword</div>
+          <input type="text" id="kwSeed" placeholder="e.g. mini PC South Africa" onkeydown="if(event.key==='Enter')runKeywordExplorer()">
+        </div>
+        <div style="min-width:120px">
+          <div class="flabel">Focus market</div>
+          <select id="kwMarket">
+            <option value="south africa" selected>South Africa</option>
+            <option value="gauteng">Gauteng</option>
+            <option value="cape town">Cape Town</option>
+          </select>
+        </div>
+        <button class="btn btn-success" onclick="runKeywordExplorer()" id="kwBtn">🔍 Explore</button>
+      </div>
+    </div>
+    <div id="kwResults"></div>
+  </div>
+
+  <!-- RANK TRACKER -->
+  <div id="seosec-rank" style="display:none">
+    <div style="background:var(--surface);border:1px solid var(--accent);padding:16px;margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent);margin-bottom:10px">📈 Rank Tracker — track keyword positions over time</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">Keyword to track</div>
+          <input type="text" id="rankKw" placeholder="e.g. mini PC for sale South Africa" onkeydown="if(event.key==='Enter')addRankKeyword()">
+        </div>
+        <button class="btn btn-primary" onclick="addRankKeyword()">+ Add Keyword</button>
+        <button class="btn btn-ghost btn-sm" onclick="checkAllRanks()">↻ Check All Positions</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">Checks current Google ranking for each tracked keyword by searching Google and finding buysave.co.za's position.</div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div class="flabel" style="margin-bottom:6px">Import top keywords from Google Search Console</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="gscSiteUrl" value="sc-domain:buysave.co.za" style="min-width:220px;max-width:280px" placeholder="sc-domain:buysave.co.za">
+          <button class="btn btn-ghost btn-sm" onclick="importFromGSC()">↓ Import Top GSC Keywords</button>
+        </div>
+        <div id="gscImportStatus" style="font-family:var(--mono);font-size:9px;color:var(--muted2);margin-top:6px"></div>
+      </div>
+    </div>
+    <div id="rankEmpty" class="empty" style="padding:20px"><div class="empty-icon">📈</div><div class="empty-text">No keywords tracked yet. Add a keyword above or import from GSC.</div></div>
+    <div id="rankGrid"></div>
+  </div>
+
+  <!-- ON-PAGE AUDIT -->
+  <div id="seosec-onpage" style="display:none">
+    <div style="background:var(--surface);border:1px solid var(--accent5);padding:16px;margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent5);margin-bottom:10px">📄 On-Page SEO Audit — analyse any page in detail</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">Page URL</div>
+          <input type="text" id="onpageUrl" placeholder="https://www.buysave.co.za/product-page/..." onkeydown="if(event.key==='Enter')runOnPageAudit()">
+        </div>
+        <div style="min-width:160px">
+          <div class="flabel">Target keyword</div>
+          <input type="text" id="onpageKw" placeholder="e.g. mini PC South Africa">
+        </div>
+        <button class="btn btn-primary" onclick="runOnPageAudit()" id="onpageBtn">📄 Audit Page</button>
+      </div>
+    </div>
+    <div id="onpageResults"></div>
+  </div>
+
+  <!-- CONTENT GAP -->
+  <div id="seosec-content" style="display:none">
+    <div style="background:var(--surface);border:1px solid var(--accent4);padding:16px;margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent4);margin-bottom:10px">✍ Content Gap Analysis — what topics are you missing?</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">Your site</div>
+          <input type="text" id="cgYours" value="https://www.buysave.co.za">
+        </div>
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">Competitor URL</div>
+          <input type="text" id="cgComp" placeholder="https://www.evetech.co.za">
+        </div>
+        <button class="btn btn-primary" onclick="runContentGap()" id="cgBtn">✍ Analyse Gap</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">Claude AI compares your site's content structure against a competitor's and identifies topics, categories, and pages you're missing.</div>
+    </div>
+    <div id="cgResults"></div>
+  </div>
+
+  <!-- BACKLINKS -->
+  <div id="seosec-backlinks" style="display:none">
+    <div style="background:var(--surface);border:1px solid var(--muted);padding:16px;margin-bottom:16px">
+      <div class="flabel" style="margin-bottom:10px">🔗 Backlink Checker — free backlink data via Open PageRank</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:200px">
+          <div class="flabel">Domain to check</div>
+          <input type="text" id="blDomain" value="buysave.co.za" onkeydown="if(event.key==='Enter')runBacklinkCheck()">
+        </div>
+        <button class="btn btn-primary" onclick="runBacklinkCheck()" id="blBtn">🔗 Check Backlinks</button>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">Uses Open PageRank API (free, no key needed) for domain authority + Claude AI to analyse your backlink profile and suggest link building opportunities.</div>
+    </div>
+    <div id="blResults"></div>
+  </div>
+
 </div>
 
 <!-- PUBLISH -->
@@ -802,14 +1031,15 @@ function saveSettings(){ settings.defaultMarkup=document.getElementById('default
 function saveWix(){ settings.wixApiKey=document.getElementById('wixApiKey').value; settings.wixSiteId=document.getElementById('wixSiteId').value; localStorage.setItem('bs_cfg',JSON.stringify(settings)); document.getElementById('wixStatus').textContent='Saved.'; document.getElementById('wixStatus').style.color='var(--accent2)'; }
 
 function switchTab(id){
-  const tabs=['browse','mywix','amazon','watchlist','alerts','publish','settings'];
+  const tabs=['browse','mywix','amazon','watchlist','alerts','seo','publish','settings'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===id));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
-  if(id==='alerts'&&allProducts.length) buildAlerts();
+  if(id==='alerts'){ renderCompGrid(); updateCompTabCount(); }
   if(id==='watchlist') renderWatch();
   if(id==='publish') renderQueue();
   if(id==='amazon') renderAmazonGrid();
+  if(id==='seo') renderRankGrid();
 }
 
 async function loadFeed(){
@@ -2073,6 +2303,729 @@ function exportSel(){
   const rows=items.map(p=>[`"${p.sku}"`,`"${p.name}"`,`"${p.brand}"`,p.price,p.rrp,calcPrice(p.price),p.jhb,p.cpt,p.dbn,p.margin,`"${p.categories}"`,p.ean,`"${p.warranty}"`,`"${p.image}"`].join(','));
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([[hdrs.join(','),...rows].join('\n')],{type:'text/csv'}));
   a.download=`buysave-syntech-${new Date().toISOString().split('T')[0]}.csv`;a.click();
+}
+
+// ============================================================
+// SEO AGENT
+// ============================================================
+
+function switchSeoTab(tab){
+  ['gsc','audit','keywords','rank','onpage','content','backlinks'].forEach(t=>{
+    const sec=document.getElementById('seosec-'+t);
+    if(sec) sec.style.display = t===tab?'block':'none';
+    const btn = document.getElementById('seotab-'+t);
+    if(btn){ btn.className = t===tab?'btn btn-primary btn-sm':'btn btn-ghost btn-sm'; btn.style.borderRadius='0'; }
+  });
+}
+
+async function loadGSCData(){
+  const property = document.getElementById('gscProperty').value.trim();
+  const days = parseInt(document.getElementById('gscDays').value)||28;
+  const btn = document.getElementById('gscBtn');
+  const results = document.getElementById('gscResults');
+  if(!property){ alert('Enter a GSC property.'); return; }
+  btn.disabled=true; btn.textContent='Loading...';
+  results.innerHTML='<div style="font-family:var(--mono);font-size:10px;color:var(--muted2);padding:20px">Fetching GSC data for '+property+'...</div>';
+  try{
+    const data = await callRelay('gscData',{ property, days });
+    renderGSCResults(data, property, days);
+  }catch(e){
+    results.innerHTML=`<div style="color:var(--accent3);font-family:var(--mono);font-size:10px;padding:16px">Error: ${e.message}<br><br><span style="color:var(--muted)">Make sure your Google Search Console is connected. You may need to add GSC credentials to your relay script.</span></div>`;
+  }
+  btn.disabled=false; btn.textContent='📊 Load GSC Data';
+}
+
+function renderGSCResults(data, property, days){
+  const results = document.getElementById('gscResults');
+  const overview = data.overview||{};
+  const topQueries = data.topQueries||[];
+  const topPages = data.topPages||[];
+  const opportunities = data.opportunities||[];
+
+  results.innerHTML = `
+    <!-- OVERVIEW STATS -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:20px">
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;text-align:center">
+        <div style="font-family:var(--cond);font-size:36px;font-weight:700;color:var(--accent2)">${(overview.clicks||0).toLocaleString()}</div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">TOTAL CLICKS</div>
+        <div style="font-family:var(--mono);font-size:8px;color:${(overview.clicksDelta||0)>=0?'var(--accent2)':'var(--accent3)'};margin-top:2px">${(overview.clicksDelta||0)>=0?'↑':'↓'} vs prev period</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;text-align:center">
+        <div style="font-family:var(--cond);font-size:36px;font-weight:700;color:var(--accent4)">${(overview.impressions||0).toLocaleString()}</div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">IMPRESSIONS</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;text-align:center">
+        <div style="font-family:var(--cond);font-size:36px;font-weight:700;color:var(--accent)">${overview.ctr||'0%'}</div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">AVG CTR</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);padding:16px;text-align:center">
+        <div style="font-family:var(--cond);font-size:36px;font-weight:700;color:var(--accent5)">${overview.position||'—'}</div>
+        <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">AVG POSITION</div>
+      </div>
+    </div>
+
+    <!-- TWO COLUMN: TOP QUERIES + TOP PAGES -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+      <div>
+        <div class="flabel" style="margin-bottom:8px">🔑 Top Queries (${days} days)</div>
+        <table class="wtable">
+          <thead><tr><th>Query</th><th>Clicks</th><th>Pos</th><th>CTR</th></tr></thead>
+          <tbody>
+            ${topQueries.slice(0,15).map(q=>`<tr>
+              <td style="font-family:var(--mono);font-size:9px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${q.query}">${q.query}</td>
+              <td style="font-family:var(--mono);font-size:10px;color:var(--accent2)">${q.clicks}</td>
+              <td style="font-family:var(--mono);font-size:10px;color:${q.position<=3?'var(--accent2)':q.position<=10?'var(--accent)':'var(--accent3)'}">${Math.round(q.position)}</td>
+              <td style="font-family:var(--mono);font-size:9px;color:var(--muted2)">${(q.ctr*100).toFixed(1)}%</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <div class="flabel" style="margin-bottom:8px">📄 Top Pages (${days} days)</div>
+        <table class="wtable">
+          <thead><tr><th>Page</th><th>Clicks</th><th>Impr</th></tr></thead>
+          <tbody>
+            ${topPages.slice(0,15).map(p=>`<tr>
+              <td style="font-family:var(--mono);font-size:9px;max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${p.page}">${p.page.replace('https://www.buysave.co.za','')}</td>
+              <td style="font-family:var(--mono);font-size:10px;color:var(--accent2)">${p.clicks}</td>
+              <td style="font-family:var(--mono);font-size:10px;color:var(--muted2)">${p.impressions}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- AI OPPORTUNITIES -->
+    ${opportunities.length?`<div>
+      <div class="flabel" style="color:var(--accent4);margin-bottom:8px">💡 AI-Identified Opportunities from your GSC Data</div>
+      ${opportunities.map(o=>`<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent4);padding:12px 16px;margin-bottom:8px">
+        <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text)">${o.title}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);margin-top:4px">${o.detail}</div>
+        ${o.action?`<div style="font-family:var(--mono);font-size:9px;color:var(--accent2);margin-top:4px">→ ${o.action}</div>`:''}
+      </div>`).join('')}
+    </div>`:''} 
+
+    <!-- IMPORT TO RANK TRACKER -->
+    <div style="margin-top:16px;padding:12px 16px;background:var(--surface);border:1px solid var(--border)">
+      <button class="btn btn-ghost btn-sm" onclick="importGSCToRankTracker(${JSON.stringify(topQueries.slice(0,20)).replace(/'/g,'&#39;')})">📈 Import top queries to Rank Tracker</button>
+      <span style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-left:10px">Adds your top ${Math.min(topQueries.length,20)} GSC queries for position tracking</span>
+    </div>
+  `;
+}
+
+function importGSCToRankTracker(queries){
+  let added=0;
+  queries.forEach(q=>{
+    if(!rankKeywords.find(k=>k.keyword.toLowerCase()===q.query.toLowerCase())){
+      rankKeywords.push({ keyword:q.query, position:Math.round(q.position), url:null, addedAt:new Date().toISOString(), lastChecked:new Date().toISOString(), history:[{date:new Date().toISOString().split('T')[0],position:Math.round(q.position)}] });
+      added++;
+    }
+  });
+  saveRank();
+  renderRankGrid();
+  switchSeoTab('rank');
+  alert(`✓ Added ${added} keywords to Rank Tracker`);
+}
+
+async function importFromGSC(){
+  const property = document.getElementById('gscSiteUrl').value.trim();
+  const status = document.getElementById('gscImportStatus');
+  status.textContent='Fetching top keywords from GSC...';
+  try{
+    const data = await callRelay('gscData',{ property, days:28 });
+    const queries = data.topQueries||[];
+    let added=0;
+    queries.slice(0,20).forEach(q=>{
+      if(!rankKeywords.find(k=>k.keyword.toLowerCase()===q.query.toLowerCase())){
+        rankKeywords.push({ keyword:q.query, position:Math.round(q.position), url:null, addedAt:new Date().toISOString(), lastChecked:new Date().toISOString(), history:[{date:new Date().toISOString().split('T')[0],position:Math.round(q.position)}] });
+        added++;
+      }
+    });
+    saveRank();
+    renderRankGrid();
+    status.textContent=`✓ Imported ${added} keywords from GSC`;
+    status.style.color='var(--accent2)';
+  }catch(e){
+    status.textContent='Error: '+e.message;
+    status.style.color='var(--accent3)';
+  }
+}
+
+// ---------- SITE AUDIT ----------
+async function runSiteAudit(){
+  const url = document.getElementById('auditUrl').value.trim();
+  const depth = document.getElementById('auditDepth').value;
+  const btn = document.getElementById('auditBtn');
+  const results = document.getElementById('auditResults');
+  const prog = document.getElementById('auditProgress');
+  const fill = document.getElementById('auditProgFill');
+  const text = document.getElementById('auditProgText');
+  if(!url){ alert('Enter a URL to audit.'); return; }
+
+  btn.disabled=true; btn.textContent='Auditing...';
+  prog.style.display='block'; results.innerHTML='';
+
+  const steps = ['Fetching page...','Analysing HTML structure...','Checking SEO elements...','Running Claude AI analysis...','Generating recommendations...'];
+  let step=0;
+  const interval = setInterval(()=>{
+    fill.style.width = Math.min(((step+1)/steps.length)*85,85)+'%';
+    text.textContent = steps[Math.min(step,steps.length-1)];
+    step++;
+  },1200);
+
+  try{
+    const data = await callRelay('seoAudit',{ url, depth });
+    clearInterval(interval);
+    fill.style.width='100%'; text.textContent='Complete';
+    setTimeout(()=>{ prog.style.display='none'; },1000);
+    renderAuditResults(data, url);
+  }catch(e){
+    clearInterval(interval);
+    prog.style.display='none';
+    results.innerHTML=`<div style="background:var(--surface);border:1px solid var(--accent3);padding:16px;font-family:var(--mono);font-size:11px;color:var(--accent3)">Audit failed: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='🏥 Run Audit';
+}
+
+function renderAuditResults(data, url){
+  const results = document.getElementById('auditResults');
+  const score = data.score||0;
+  const scoreCol = score>=80?'var(--accent2)':score>=60?'var(--accent)':'var(--accent3)';
+  const issues = data.issues||[];
+  const warnings = data.warnings||[];
+  const passes = data.passes||[];
+  const recommendations = data.recommendations||[];
+
+  results.innerHTML = `
+    <!-- SCORE -->
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);padding:20px;align-items:center">
+      <div style="text-align:center">
+        <div style="font-family:var(--cond);font-size:64px;font-weight:900;color:${scoreCol};line-height:1">${score}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px">SEO HEALTH SCORE</div>
+        <div style="font-family:var(--mono);font-size:8px;color:${scoreCol};margin-top:4px">${score>=80?'EXCELLENT':score>=60?'NEEDS WORK':'CRITICAL'}</div>
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text);margin-bottom:8px">${url}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9">${data.summary||''}</div>
+        <div style="display:flex;gap:16px;margin-top:12px">
+          <div style="text-align:center"><div style="font-family:var(--cond);font-size:24px;color:var(--accent3)">${issues.length}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted)">ISSUES</div></div>
+          <div style="text-align:center"><div style="font-family:var(--cond);font-size:24px;color:var(--accent)">${warnings.length}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted)">WARNINGS</div></div>
+          <div style="text-align:center"><div style="font-family:var(--cond);font-size:24px;color:var(--accent2)">${passes.length}</div><div style="font-family:var(--mono);font-size:8px;color:var(--muted)">PASSED</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ISSUES -->
+    ${issues.length?`<div style="margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent3);margin-bottom:8px">🔴 Critical Issues (${issues.length})</div>
+      ${issues.map(i=>`<div style="background:var(--surface);border-left:3px solid var(--accent3);padding:10px 14px;margin-bottom:6px;font-family:var(--mono)">
+        <div style="font-size:10px;font-weight:700;color:var(--text)">${i.title}</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:3px">${i.detail}</div>
+        ${i.fix?`<div style="font-size:9px;color:var(--accent2);margin-top:4px">✓ Fix: ${i.fix}</div>`:''}
+      </div>`).join('')}
+    </div>`:''}
+
+    <!-- WARNINGS -->
+    ${warnings.length?`<div style="margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent);margin-bottom:8px">🟡 Warnings (${warnings.length})</div>
+      ${warnings.map(w=>`<div style="background:var(--surface);border-left:3px solid var(--accent);padding:10px 14px;margin-bottom:6px;font-family:var(--mono)">
+        <div style="font-size:10px;font-weight:700;color:var(--text)">${w.title}</div>
+        <div style="font-size:9px;color:var(--muted2);margin-top:3px">${w.detail}</div>
+        ${w.fix?`<div style="font-size:9px;color:var(--accent2);margin-top:4px">✓ Fix: ${w.fix}</div>`:''}
+      </div>`).join('')}
+    </div>`:''}
+
+    <!-- PASSES -->
+    ${passes.length?`<div style="margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent2);margin-bottom:8px">✅ Passed Checks (${passes.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${passes.map(p=>`<span style="font-family:var(--mono);font-size:9px;background:rgba(0,200,80,0.12);border:1px solid rgba(0,200,80,0.3);color:var(--accent2);padding:3px 8px">✓ ${p}</span>`).join('')}
+      </div>
+    </div>`:''}
+
+    <!-- RECOMMENDATIONS -->
+    ${recommendations.length?`<div style="margin-bottom:16px">
+      <div class="flabel" style="color:var(--accent4);margin-bottom:8px">💡 AI Recommendations</div>
+      ${recommendations.map((r,i)=>`<div style="background:var(--surface);border:1px solid var(--border);padding:12px 16px;margin-bottom:8px">
+        <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--accent4);margin-bottom:4px">${i+1}. ${r.title}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);line-height:1.7">${r.detail}</div>
+        ${r.impact?`<div style="font-family:var(--mono);font-size:8px;color:var(--accent);margin-top:4px">Expected impact: ${r.impact}</div>`:''}
+      </div>`).join('')}
+    </div>`:''}
+  `;
+}
+
+// ---------- KEYWORD EXPLORER ----------
+async function runKeywordExplorer(){
+  const seed = document.getElementById('kwSeed').value.trim();
+  const market = document.getElementById('kwMarket').value;
+  const btn = document.getElementById('kwBtn');
+  const results = document.getElementById('kwResults');
+  if(!seed){ alert('Enter a seed keyword.'); return; }
+  btn.disabled=true; btn.textContent='Exploring...';
+  results.innerHTML='<div style="font-family:var(--mono);font-size:10px;color:var(--muted2);padding:20px">Claude AI is generating keyword ideas for "'+seed+'" in the '+market+' market...</div>';
+  try{
+    const data = await callRelay('keywordExplorer',{ seed, market });
+    const kws = data.keywords||[];
+    results.innerHTML = `
+      <div style="margin-bottom:12px;font-family:var(--mono);font-size:9px;color:var(--muted)">Found ${kws.length} keyword opportunities for "${seed}" · ${market}</div>
+      <div style="overflow-x:auto">
+      <table class="wtable">
+        <thead><tr><th>Keyword</th><th>Est. Volume</th><th>Difficulty</th><th>Intent</th><th>BuySave Opportunity</th><th>Action</th></tr></thead>
+        <tbody>
+          ${kws.map(k=>`<tr>
+            <td style="font-family:var(--mono);font-size:10px;font-weight:700">${k.keyword}</td>
+            <td style="font-family:var(--mono);font-size:10px;color:var(--accent2)">${k.volume||'—'}</td>
+            <td><span style="font-family:var(--mono);font-size:8px;padding:2px 6px;background:${k.difficulty==='Low'?'rgba(0,200,80,0.15)':k.difficulty==='Medium'?'rgba(255,165,0,0.15)':'rgba(255,80,80,0.15)'};color:${k.difficulty==='Low'?'var(--accent2)':k.difficulty==='Medium'?'var(--accent)':'var(--accent3)'}">${k.difficulty||'—'}</span></td>
+            <td style="font-family:var(--mono);font-size:9px;color:var(--muted2)">${k.intent||'—'}</td>
+            <td style="font-family:var(--mono);font-size:9px;color:var(--accent2);max-width:200px">${k.opportunity||'—'}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="document.getElementById('onpageKw').value='${k.keyword}';switchSeoTab('onpage')" title="Audit page for this keyword">→ Audit</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+      ${data.analysis?`<div style="background:var(--surface);border:1px solid var(--border);padding:14px;margin-top:16px;font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9">${data.analysis}</div>`:''}
+    `;
+  }catch(e){
+    results.innerHTML=`<div style="color:var(--accent3);font-family:var(--mono);font-size:10px;padding:16px">Error: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='🔍 Explore';
+}
+
+// ---------- RANK TRACKER ----------
+let rankKeywords = JSON.parse(localStorage.getItem('bs_rank')||'[]');
+function saveRank(){ localStorage.setItem('bs_rank',JSON.stringify(rankKeywords)); }
+
+function addRankKeyword(){
+  const kw = document.getElementById('rankKw').value.trim();
+  if(!kw){ alert('Enter a keyword.'); return; }
+  if(rankKeywords.find(k=>k.keyword.toLowerCase()===kw.toLowerCase())){ alert('Already tracking this keyword.'); return; }
+  rankKeywords.push({ keyword:kw, position:null, url:null, addedAt:new Date().toISOString(), lastChecked:null, history:[] });
+  saveRank();
+  document.getElementById('rankKw').value='';
+  renderRankGrid();
+  checkRank(rankKeywords.length-1);
+}
+
+async function checkRank(idx){
+  const item = rankKeywords[idx];
+  if(!item) return;
+  try{
+    const data = await callRelay('checkRank',{ keyword:item.keyword, domain:'buysave.co.za' });
+    const prev = item.position;
+    item.position = data.position||null;
+    item.url = data.url||null;
+    item.lastChecked = new Date().toISOString();
+    if(item.position) item.history.push({ date:new Date().toISOString().split('T')[0], position:item.position });
+    if(item.history.length>30) item.history=item.history.slice(-30);
+    saveRank();
+    renderRankGrid();
+  }catch(e){ console.error('Rank check failed:',e); }
+}
+
+async function checkAllRanks(){
+  for(let i=0;i<rankKeywords.length;i++){
+    await checkRank(i);
+    await new Promise(r=>setTimeout(r,1500));
+  }
+}
+
+function renderRankGrid(){
+  const grid = document.getElementById('rankGrid');
+  const empty = document.getElementById('rankEmpty');
+  if(!rankKeywords.length){ empty.style.display='block'; grid.innerHTML=''; return; }
+  empty.style.display='none';
+  grid.innerHTML=`<div style="overflow-x:auto"><table class="wtable">
+    <thead><tr><th>Keyword</th><th>Position</th><th>Trend</th><th>URL Ranking</th><th>Last Checked</th><th></th></tr></thead>
+    <tbody>
+      ${rankKeywords.map((k,i)=>{
+        const posCol = !k.position?'var(--muted)':k.position<=3?'var(--accent2)':k.position<=10?'var(--accent)':k.position<=20?'var(--accent4)':'var(--accent3)';
+        const hist = k.history.slice(-5);
+        const trend = hist.length>=2 ? (hist[hist.length-1].position < hist[hist.length-2].position ? '↑' : hist[hist.length-1].position > hist[hist.length-2].position ? '↓' : '→') : '—';
+        const trendCol = trend==='↑'?'var(--accent2)':trend==='↓'?'var(--accent3)':'var(--muted)';
+        return `<tr>
+          <td style="font-family:var(--mono);font-size:11px;font-weight:700">${k.keyword}</td>
+          <td><span style="font-family:var(--cond);font-size:24px;font-weight:700;color:${posCol}">${k.position||'—'}</span></td>
+          <td><span style="font-family:var(--mono);font-size:16px;color:${trendCol}">${trend}</span>${hist.map(h=>`<span style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-left:4px">${h.position}</span>`).join('')}</td>
+          <td style="font-family:var(--mono);font-size:9px;color:var(--accent4);max-width:200px;overflow:hidden;text-overflow:ellipsis">${k.url?`<a href="${k.url}" target="_blank" style="color:var(--accent4)">${k.url.replace('https://www.buysave.co.za','')}</a>`:'—'}</td>
+          <td style="font-family:var(--mono);font-size:8px;color:var(--muted)">${k.lastChecked?k.lastChecked.split('T')[0]:'Never'}</td>
+          <td style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm" onclick="checkRank(${i})">↻</button>
+            <button class="btn btn-danger btn-sm" onclick="rankKeywords.splice(${i},1);saveRank();renderRankGrid()">✕</button>
+          </td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// ---------- ON-PAGE AUDIT ----------
+async function runOnPageAudit(){
+  const url = document.getElementById('onpageUrl').value.trim();
+  const kw = document.getElementById('onpageKw').value.trim();
+  const btn = document.getElementById('onpageBtn');
+  const results = document.getElementById('onpageResults');
+  if(!url){ alert('Enter a page URL.'); return; }
+  btn.disabled=true; btn.textContent='Auditing...';
+  results.innerHTML='<div style="font-family:var(--mono);font-size:10px;color:var(--muted2);padding:20px">Fetching and analysing page...</div>';
+  try{
+    const data = await callRelay('onPageAudit',{ url, keyword:kw });
+    const checks = data.checks||[];
+    results.innerHTML = `
+      <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text);margin-bottom:12px">On-Page Analysis: <span style="color:var(--accent4)">${url}</span></div>
+      ${kw?`<div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:12px">Target keyword: "${kw}"</div>`:''}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px">
+        ${checks.map(c=>`<div style="background:var(--surface);border:1px solid ${c.status==='pass'?'rgba(0,200,80,0.3)':c.status==='fail'?'rgba(255,80,80,0.3)':'rgba(255,165,0,0.3)'};padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text)">${c.name}</div>
+            <span style="font-family:var(--mono);font-size:8px;padding:1px 6px;background:${c.status==='pass'?'rgba(0,200,80,0.15)':c.status==='fail'?'rgba(255,80,80,0.15)':'rgba(255,165,0,0.15)'};color:${c.status==='pass'?'var(--accent2)':c.status==='fail'?'var(--accent3)':'var(--accent)'}">${c.status.toUpperCase()}</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted2)">${c.detail}</div>
+          ${c.value?`<div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:4px;border-top:1px solid var(--border);padding-top:4px;word-break:break-word">${c.value}</div>`:''}
+        </div>`).join('')}
+      </div>
+      ${data.suggestions?`<div style="background:var(--surface);border:1px solid var(--accent2);padding:14px;margin-top:16px">
+        <div class="flabel" style="color:var(--accent2);margin-bottom:8px">💡 Improvement Suggestions</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9">${data.suggestions}</div>
+      </div>`:''}
+    `;
+  }catch(e){
+    results.innerHTML=`<div style="color:var(--accent3);font-family:var(--mono);font-size:10px;padding:16px">Error: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='📄 Audit Page';
+}
+
+// ---------- CONTENT GAP ----------
+async function runContentGap(){
+  const yours = document.getElementById('cgYours').value.trim();
+  const comp = document.getElementById('cgComp').value.trim();
+  const btn = document.getElementById('cgBtn');
+  const results = document.getElementById('cgResults');
+  if(!yours||!comp){ alert('Enter both URLs.'); return; }
+  btn.disabled=true; btn.textContent='Analysing...';
+  results.innerHTML='<div style="font-family:var(--mono);font-size:10px;color:var(--muted2);padding:20px">Fetching both sites and comparing content gaps...</div>';
+  try{
+    const data = await callRelay('contentGap',{ yours, competitor:comp });
+    const gaps = data.gaps||[];
+    results.innerHTML = `
+      <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:12px">Content gap between ${yours} vs ${comp}</div>
+      ${data.summary?`<div style="background:var(--surface);border:1px solid var(--border);padding:14px;margin-bottom:16px;font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9">${data.summary}</div>`:''}
+      ${gaps.length?`<div class="flabel" style="margin-bottom:10px">Content Opportunities Missing from Your Site</div>
+      ${gaps.map(g=>`<div style="background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent4);padding:12px 16px;margin-bottom:8px">
+        <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text)">${g.topic}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted2);margin-top:4px">${g.detail}</div>
+        ${g.action?`<div style="font-family:var(--mono);font-size:9px;color:var(--accent2);margin-top:6px">→ ${g.action}</div>`:''}
+      </div>`).join('')}`:'<div style="font-family:var(--mono);font-size:10px;color:var(--accent2);padding:12px">No significant content gaps found.</div>'}
+    `;
+  }catch(e){
+    results.innerHTML=`<div style="color:var(--accent3);font-family:var(--mono);font-size:10px;padding:16px">Error: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='✍ Analyse Gap';
+}
+
+// ---------- BACKLINK CHECKER ----------
+async function runBacklinkCheck(){
+  const domain = document.getElementById('blDomain').value.trim().replace(/https?:\/\//,'').replace(/\//,'');
+  const btn = document.getElementById('blBtn');
+  const results = document.getElementById('blResults');
+  if(!domain){ alert('Enter a domain.'); return; }
+  btn.disabled=true; btn.textContent='Checking...';
+  results.innerHTML='<div style="font-family:var(--mono);font-size:10px;color:var(--muted2);padding:20px">Fetching backlink data...</div>';
+  try{
+    const data = await callRelay('checkBacklinks',{ domain });
+    results.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:16px">
+        <div style="background:var(--surface);border:1px solid var(--border);padding:16px;text-align:center">
+          <div style="font-family:var(--cond);font-size:36px;font-weight:700;color:var(--accent2)">${data.pageRank||'—'}</div>
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">OPEN PAGERANK (0-10)</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);padding:16px;text-align:center">
+          <div style="font-family:var(--cond);font-size:36px;font-weight:700;color:var(--accent4)">${data.externalBacklinks||'—'}</div>
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">EXTERNAL BACKLINKS</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);padding:16px;text-align:center">
+          <div style="font-family:var(--cond);font-size:36px;font-weight:700;color:var(--accent)">${data.referringDomains||'—'}</div>
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted)">REFERRING DOMAINS</div>
+        </div>
+      </div>
+      ${data.analysis?`<div style="background:var(--surface);border:1px solid var(--border);padding:14px;margin-bottom:16px;font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9">${data.analysis}</div>`:''}
+      ${data.opportunities?`<div style="background:var(--surface);border:1px solid var(--accent2);padding:14px">
+        <div class="flabel" style="color:var(--accent2);margin-bottom:8px">🔗 Link Building Opportunities</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.9">${data.opportunities}</div>
+      </div>`:''}
+    `;
+  }catch(e){
+    results.innerHTML=`<div style="color:var(--accent3);font-family:var(--mono);font-size:10px;padding:16px">Error: ${e.message}</div>`;
+  }
+  btn.disabled=false; btn.textContent='🔗 Check Backlinks';
+}
+let compItems = JSON.parse(localStorage.getItem('bs_comp')||'[]');
+function saveComp(){ localStorage.setItem('bs_comp',JSON.stringify(compItems)); }
+
+const COMPETITORS = {
+  takealot:    { name:'Takealot',             url:'https://www.takealot.com',             searchUrl:(q)=>`https://www.takealot.com/all?_sb=1&_r=1&_si=${encodeURIComponent(q)}`,             color:'#0082ff' },
+  evetech:     { name:'Evetech',              url:'https://www.evetech.co.za',            searchUrl:(q)=>`https://www.evetech.co.za/search/${encodeURIComponent(q)}`,                        color:'#e63312' },
+  wootware:    { name:'Wootware',             url:'https://www.wootware.co.za',           searchUrl:(q)=>`https://www.wootware.co.za/search?q=${encodeURIComponent(q)}`,                    color:'#00a651' },
+  incredible:  { name:'Incredible Connection',url:'https://www.incredible.co.za',        searchUrl:(q)=>`https://www.incredible.co.za/catalogsearch/result/?q=${encodeURIComponent(q)}`,   color:'#ff6600' },
+  pricecheck:  { name:'PriceCheck',           url:'https://www.pricecheck.co.za',        searchUrl:(q)=>`https://www.pricecheck.co.za/search/?q=${encodeURIComponent(q)}`,                 color:'#9b59b6' }
+};
+
+function getActiveCompetitors(){
+  return Object.keys(COMPETITORS).filter(k=>{
+    const el=document.getElementById('comp_'+k);
+    return el&&el.checked;
+  });
+}
+
+async function loadWixForComp(){
+  const sel=document.getElementById('compWixSelect');
+  sel.style.display='block';
+  sel.innerHTML='<option value="">— Loading... —</option>';
+  try{
+    const data=await callRelay('getWixProducts',{limit:100,offset:0});
+    const prods=data.products||[];
+    sel.innerHTML='<option value="">— Select a product —</option>'+
+      prods.map(p=>`<option value="${p.id}" data-name="${(p.name||'').replace(/"/g,'')}" data-price="${p.priceData?.price||0}">${(p.name||'').substring(0,50)} — R${p.priceData?.price||0}</option>`).join('');
+  }catch(e){
+    sel.innerHTML='<option value="">— Error loading —</option>';
+  }
+}
+
+function prefillCompFromWix(){
+  const sel=document.getElementById('compWixSelect');
+  const opt=sel.options[sel.selectedIndex];
+  if(!opt||!opt.value) return;
+  document.getElementById('compProductName').value=opt.dataset.name||'';
+  document.getElementById('compMyPrice').value=opt.dataset.price||'';
+}
+
+async function addCompetitorProduct(){
+  const name=document.getElementById('compProductName').value.trim();
+  const myPrice=parseFloat(document.getElementById('compMyPrice').value)||0;
+  const btn=document.getElementById('compAddBtn');
+  const status=document.getElementById('compAddStatus');
+  if(!name){ alert('Enter a product name to search for.'); return; }
+
+  btn.disabled=true; btn.textContent='Searching...';
+  status.textContent='Searching SA competitor sites...';
+  status.style.color='var(--muted2)';
+
+  const competitors=getActiveCompetitors();
+  const results={};
+  let found=0;
+
+  for(const compKey of competitors){
+    const comp=COMPETITORS[compKey];
+    status.textContent=`Searching ${comp.name}...`;
+    try{
+      const data=await callRelay('searchCompetitor',{
+        site: compKey,
+        query: name,
+        searchUrl: comp.searchUrl(name)
+      });
+      results[compKey]={
+        name: comp.name,
+        price: data.price||null,
+        productName: data.productName||null,
+        url: data.url||comp.searchUrl(name),
+        found: !!data.price,
+        error: data.error||null,
+        lastSynced: new Date().toISOString()
+      };
+      if(data.price) found++;
+    }catch(e){
+      results[compKey]={ name:comp.name, price:null, found:false, error:e.message, url:comp.searchUrl(name), lastSynced:new Date().toISOString() };
+    }
+    await new Promise(r=>setTimeout(r,800));
+  }
+
+  // Add to monitored list
+  const existing=compItems.findIndex(c=>c.productName.toLowerCase()===name.toLowerCase());
+  const item={
+    productName: name,
+    myPrice: myPrice,
+    addedAt: new Date().toISOString(),
+    lastSynced: new Date().toISOString(),
+    competitors: results
+  };
+  if(existing>-1) compItems[existing]=item; else compItems.push(item);
+  saveComp();
+
+  document.getElementById('compProductName').value='';
+  document.getElementById('compMyPrice').value='';
+  btn.disabled=false; btn.textContent='Search Competitors';
+
+  const threshold=parseInt(document.getElementById('compThreshold').value)||0;
+  const alerts=countCompAlerts(item,threshold);
+  status.textContent=`✓ Found prices on ${found}/${competitors.length} sites${alerts>0?' — ⚠ '+alerts+' cheaper than you':''}`;
+  status.style.color=alerts>0?'var(--accent3)':'var(--accent2)';
+
+  renderCompGrid();
+  updateCompTabCount();
+}
+
+async function syncAllCompetitors(){
+  if(!compItems.length){ alert('No products to sync.'); return; }
+  const btn=document.getElementById('compSyncBtn');
+  const status=document.getElementById('compAddStatus');
+  btn.disabled=true; btn.textContent='Syncing...';
+  const competitors=getActiveCompetitors();
+  for(let i=0;i<compItems.length;i++){
+    const item=compItems[i];
+    status.textContent=`Syncing ${i+1}/${compItems.length}: ${item.productName.substring(0,40)}...`;
+    for(const compKey of competitors){
+      const comp=COMPETITORS[compKey];
+      try{
+        const data=await callRelay('searchCompetitor',{
+          site:compKey, query:item.productName, searchUrl:comp.searchUrl(item.productName)
+        });
+        item.competitors[compKey]={ name:comp.name, price:data.price||null, productName:data.productName||null, url:data.url||comp.searchUrl(item.productName), found:!!data.price, error:data.error||null, lastSynced:new Date().toISOString() };
+      }catch(e){
+        if(item.competitors[compKey]) item.competitors[compKey].error=e.message;
+      }
+      await new Promise(r=>setTimeout(r,600));
+    }
+    item.lastSynced=new Date().toISOString();
+  }
+  saveComp();
+  btn.disabled=false; btn.textContent='↻ Sync All Prices';
+  status.textContent=`✓ All products synced`;
+  status.style.color='var(--accent2)';
+  renderCompGrid();
+  updateCompTabCount();
+}
+
+function clearAllCompetitors(){
+  if(!confirm('Clear all competitor monitoring data?')) return;
+  compItems=[];
+  saveComp();
+  renderCompGrid();
+  updateCompTabCount();
+}
+
+function countCompAlerts(item, threshold){
+  if(!item.myPrice) return 0;
+  return Object.values(item.competitors||{}).filter(c=>{
+    if(!c.price) return false;
+    const diff=((item.myPrice-c.price)/item.myPrice)*100;
+    return diff>threshold;
+  }).length;
+}
+
+function updateCompTabCount(){
+  const threshold=parseInt(document.getElementById('compThreshold')?.value)||0;
+  const total=compItems.reduce((sum,item)=>sum+countCompAlerts(item,threshold),0);
+  document.getElementById('tc-alerts').textContent=total||compItems.length||0;
+}
+
+function renderCompGrid(){
+  const grid=document.getElementById('compGrid');
+  const empty=document.getElementById('compEmpty');
+  if(!compItems.length){ empty.style.display='block'; grid.innerHTML=''; return; }
+  empty.style.display='none';
+  const threshold=parseInt(document.getElementById('compThreshold').value)||0;
+
+  grid.innerHTML=compItems.map((item,idx)=>{
+    const myPrice=item.myPrice||0;
+    const compEntries=Object.entries(item.competitors||{});
+    const cheapest=compEntries.filter(([,c])=>c.price).sort(([,a],[,b])=>a.price-b.price)[0];
+    const cheapestPrice=cheapest?cheapest[1].price:null;
+    const priceDiff=cheapestPrice&&myPrice?((myPrice-cheapestPrice)/myPrice)*100:null;
+    const isAlert=priceDiff!==null&&priceDiff>threshold;
+
+    return `<div style="background:var(--surface);border:1px solid ${isAlert?'var(--accent3)':'var(--border)'};margin-bottom:12px;padding:0">
+      <!-- Header -->
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);background:${isAlert?'rgba(255,80,80,0.06)':'var(--surface2)'}">
+        <div>
+          <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text)">${item.productName.substring(0,70)}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px">Your price: <span style="color:var(--accent2);font-weight:700">R${myPrice?myPrice.toLocaleString():'—'}</span> ${cheapestPrice?`· Cheapest competitor: <span style="color:${isAlert?'var(--accent3)':'var(--muted2)'};font-weight:700">R${cheapestPrice.toLocaleString()}</span>`:''}${priceDiff!==null?` (${priceDiff>0?'you\'re '+Math.round(priceDiff)+'% more expensive':'you\'re '+Math.round(Math.abs(priceDiff))+'% cheaper'})`:''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${isAlert?`<span style="font-family:var(--mono);font-size:8px;background:var(--accent3);color:#fff;padding:2px 8px">⚠ UNDERCUT</span>`:''}
+          <button class="btn btn-ghost btn-sm" onclick="removeComp(${idx})">✕</button>
+        </div>
+      </div>
+      <!-- Competitor prices grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1px;background:var(--border)">
+        ${compEntries.map(([key,c])=>{
+          const diff=c.price&&myPrice?((myPrice-c.price)/myPrice)*100:null;
+          const cheaper=diff!==null&&diff>threshold;
+          return `<div style="background:var(--surface);padding:12px;text-align:center">
+            <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:${COMPETITORS[key]?.color||'var(--muted)'};margin-bottom:6px">${c.name}</div>
+            ${c.price
+              ? `<div style="font-family:var(--cond);font-size:18px;font-weight:700;color:${cheaper?'var(--accent3)':'var(--accent2)'};line-height:1">R${c.price.toLocaleString()}</div>
+                 <div style="font-family:var(--mono);font-size:8px;color:${cheaper?'var(--accent3)':'var(--muted)'};margin-top:3px">${diff!==null?(diff>0?'▲ '+Math.round(diff)+'% cheaper':'▼ '+Math.round(Math.abs(diff))+'% more'):'—'}</div>`
+              : `<div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:8px">${c.error?'Error':'Not found'}</div>`
+            }
+            <div style="margin-top:6px">
+              <input type="text" placeholder="Paste exact URL..." id="compurl-${idx}-${key}"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:8px;padding:2px 4px;margin-bottom:3px"
+                onclick="event.stopPropagation()" value="${c.manualUrl||''}">
+              <div style="display:flex;gap:3px">
+                <button class="btn btn-sm" style="flex:1;font-size:7px;padding:2px" onclick="event.stopPropagation();fetchManualCompUrl(${idx},'${key}')">↗ Fetch Price</button>
+                <a href="${c.url}" target="_blank" style="flex:1"><button class="btn btn-ghost btn-sm" style="width:100%;font-size:7px;padding:2px">Search</button></a>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+        <!-- Your price card -->
+        <div style="background:var(--surface2);padding:12px;text-align:center;border:1px solid var(--accent2)30">
+          <div style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--accent2);margin-bottom:6px">BuySave</div>
+          <div style="font-family:var(--cond);font-size:18px;font-weight:700;color:var(--accent2);line-height:1">R${myPrice?myPrice.toLocaleString():'—'}</div>
+          <div style="font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:3px">Your price</div>
+          <div style="margin-top:8px"><a href="https://www.buysave.co.za" target="_blank" style="font-family:var(--mono);font-size:8px;color:var(--accent2);text-decoration:none">↗ BuySave</a></div>
+        </div>
+      </div>
+      <div style="padding:8px 16px;font-family:var(--mono);font-size:8px;color:var(--muted)">Last synced: ${item.lastSynced?new Date(item.lastSynced).toLocaleString('en-ZA'):'Never'}</div>
+    </div>`;
+  }).join('');
+}
+
+function removeComp(idx){
+  compItems.splice(idx,1);
+  saveComp();
+  renderCompGrid();
+  updateCompTabCount();
+}
+
+async function fetchManualCompUrl(itemIdx, compKey){
+  const input = document.getElementById(`compurl-${itemIdx}-${compKey}`);
+  const url = input?.value?.trim();
+  if(!url){ alert('Paste a URL first.'); return; }
+  const item = compItems[itemIdx];
+  if(!item) return;
+  const status = document.getElementById('compAddStatus');
+  status.textContent = `Fetching price from ${COMPETITORS[compKey]?.name||compKey}...`;
+  status.style.color = 'var(--muted2)';
+  try{
+    const data = await callRelay('searchCompetitor',{
+      site: compKey,
+      query: item.productName,
+      searchUrl: url
+    });
+    if(!item.competitors) item.competitors={};
+    item.competitors[compKey] = {
+      name: COMPETITORS[compKey]?.name||compKey,
+      price: data.price||null,
+      productName: data.productName||null,
+      url: url,
+      manualUrl: url,
+      found: !!data.price,
+      error: data.price?null:'Could not extract price — check URL',
+      lastSynced: new Date().toISOString()
+    };
+    saveComp();
+    status.textContent = data.price
+      ? `✓ ${COMPETITORS[compKey]?.name}: R${data.price.toLocaleString()}`
+      : `⚠ Could not extract price from that URL — try a direct product page`;
+    status.style.color = data.price ? 'var(--accent2)' : 'var(--accent)';
+    renderCompGrid();
+    updateCompTabCount();
+  }catch(e){
+    status.textContent = 'Error: '+e.message;
+    status.style.color = 'var(--accent3)';
+  }
 }
 </script>
 </body>
