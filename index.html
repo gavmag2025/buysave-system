@@ -120,6 +120,21 @@ select option{background:var(--surface2)}
 ::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:var(--border2)}
 @media(max-width:640px){.topbar{padding:0 12px}.panel{padding:12px}.pgrid{grid-template-columns:1fr}}
 </style>
+  <script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+  
+  window.initFirebase = function(apiKey, projectId, databaseId) {
+    const app = initializeApp({ apiKey, projectId, appId: '1:1:web:1' }, 'buysave-dashboard');
+    const db = databaseId 
+      ? getFirestore(app, databaseId)
+      : getFirestore(app);
+    window._firestoreDb = db;
+    window._firestoreSetDoc = setDoc;
+    window._firestoreDoc = doc;
+    return db;
+  };
+</script>
 </head>
 <body>
 
@@ -3774,16 +3789,10 @@ async function testFirebaseConfig(){
   status.style.color = 'var(--muted2)';
   try {
     const cfg = getFirebaseConfig();
-    const token = await getFirestoreToken();
-    const dbPath = cfg.databaseId ? `/databases/${cfg.databaseId}` : '/databases/(default)';
-    const url = `https://firestore.googleapis.com/v1/projects/${cfg.projectId}${dbPath}/documents/suppliers/amazon`;
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    if(res.ok){
-      status.textContent = '✓ Connected to BuySave Firestore!';
-      status.style.color = 'var(--accent2)';
-    } else {
-      throw new Error('HTTP ' + res.status);
-    }
+    if(!cfg.apiKey) throw new Error('No API key entered');
+    window.initFirebase(cfg.apiKey, cfg.projectId, cfg.databaseId);
+    status.textContent = '✓ Firebase initialized! Try pushing a product to confirm write access.';
+    status.style.color = 'var(--accent2)';
   } catch(e){
     status.textContent = '✗ ' + e.message;
     status.style.color = 'var(--accent3)';
@@ -3820,10 +3829,78 @@ async function pushToShop(){
 
   const cfg = getFirebaseConfig();
   if(!cfg.apiKey || !cfg.projectId){
-    alert('Configure BuySave Shop connection first.\nGo to Settings → BuySave Shop and add your Firebase API key.');
+    alert('Configure BuySave Shop connection first.\nGo to Settings → BuySave Shop.');
     switchTab('settings');
     return;
   }
+
+  if(!confirm(`Push ${selected.length} product${selected.length!==1?'s':''} to shop.buysave.co.za?`)) return;
+
+  const markup = parseFloat(document.getElementById('defaultMarkup')?.value || 30);
+  const vat = parseFloat(document.getElementById('vatRate')?.value || 15);
+
+  const bar = document.getElementById('bulkBar');
+  const origHTML = bar.querySelector('.bulk-actions').innerHTML;
+  bar.querySelector('.bulk-actions').innerHTML = `<div style="font-family:var(--mono);font-size:10px;color:var(--accent2)" id="shopPushStatus">Connecting to Firebase...</div>`;
+
+  let pushed = 0, failed = 0;
+
+  try {
+    const db = window.initFirebase(cfg.apiKey, cfg.projectId, cfg.databaseId);
+    const setDoc = window._firestoreSetDoc;
+    const docRef = window._firestoreDoc;
+    const status = document.getElementById('shopPushStatus');
+
+    for(const p of selected){
+      try {
+        status.textContent = `Pushing ${pushed+1}/${selected.length}: ${p.name.substring(0,40)}...`;
+
+        const sellPrice = Math.ceil((p.price * (1 + vat/100) * (1 + markup/100)) / 10) * 10;
+        const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').substring(0,100);
+        const docId = ('esquire_' + p.sku).replace(/[\/\\\.\s]/g,'-').replace(/[^a-zA-Z0-9\-_]/g,'').substring(0,100);
+
+        await setDoc(docRef(db, 'products', docId), {
+          name: p.name,
+          sku: p.sku,
+          esquireSku: p.sku,
+          slug,
+          supplier: 'esquire',
+          origin: 'esquire-import',
+          category: p.categories || p.catTree || 'Uncategorized',
+          categories: [p.categories || 'Uncategorized'],
+          description: p.desc || p.shortDesc || p.name,
+          imageUrl: p.image || '',
+          images: p.image ? [p.image] : [],
+          price: sellPrice,
+          costPrice: p.price,
+          inStock: p.available !== false && (p.jhb > 0 || p.available === true),
+          stock: p.jhb || (p.available ? 99 : 0),
+          brand: p.brand || '',
+          status: 'active',
+          visible: true,
+          featured: false,
+          sortOrder: Math.floor(Date.now() / 1000),
+          lastSyncedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+
+        pushed++;
+      } catch(e){
+        console.error('Failed', p.sku, e.message);
+        failed++;
+      }
+      await new Promise(r => setTimeout(r, 150));
+    }
+
+    status.textContent = `✅ Pushed ${pushed} products to shop.buysave.co.za${failed?` · ${failed} failed`:''}`;
+    setTimeout(()=>{ bar.querySelector('.bulk-actions').innerHTML = origHTML; clearSelection(); }, 4000);
+
+  } catch(e){
+    bar.querySelector('.bulk-actions').innerHTML = origHTML;
+    alert('Push failed: ' + e.message);
+  }
+}
 
   const markup = parseFloat(document.getElementById('defaultMarkup')?.value || 30);
   const vat = parseFloat(document.getElementById('vatRate')?.value || 15);
