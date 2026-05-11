@@ -3796,23 +3796,71 @@ function initFirebaseDb(){
   return _fbDb;
 }
 
+async function firestoreRequest(method, path, body){
+  const cfg = getFirebaseConfig();
+  if(!cfg.apiKey) throw new Error('No Firebase API key configured');
+
+  // Get auth token via Firebase Auth REST API
+  const authRes = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:signInAnonymously?key=${cfg.apiKey}`,
+    { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({returnSecureToken:true}) }
+  );
+  const authData = await authRes.json();
+  if(authData.error) throw new Error('Firebase auth: ' + authData.error.message);
+  const token = authData.idToken;
+
+  const dbId = cfg.databaseId || '(default)';
+  const url = `https://firestore.googleapis.com/v1/projects/${cfg.projectId}/databases/${dbId}/documents/${path}`;
+
+  const options = {
+    method,
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+  };
+  if(body) options.body = JSON.stringify(body);
+
+  const res = await fetch(url, options);
+  const data = await res.json();
+  if(data.error) throw new Error('Firestore: ' + data.error.message);
+  return data;
+}
+
+function toFsValue(v){
+  if(v===null||v===undefined) return {nullValue:null};
+  if(typeof v==='boolean') return {booleanValue:v};
+  if(typeof v==='number') return Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v};
+  if(typeof v==='string') return {stringValue:v};
+  if(Array.isArray(v)) return {arrayValue:{values:v.map(toFsValue)}};
+  if(typeof v==='object'){
+    const fields={};
+    for(const [k,val] of Object.entries(v)) if(val!==undefined) fields[k]=toFsValue(val);
+    return {mapValue:{fields}};
+  }
+  return {stringValue:String(v)};
+}
+
+function buildFsDoc(data){
+  const fields={};
+  for(const [k,v] of Object.entries(data)) if(v!==undefined) fields[k]=toFsValue(v);
+  return {fields};
+}
+
 async function testFirebaseConfig(){
   const st = document.getElementById('fbStatus');
   st.textContent = 'Testing connection...';
   st.style.color = 'var(--muted2)';
   try {
-    const db = initFirebaseDb();
-    // Try reading a known document
-    const snap = await db.collection('suppliers').doc('amazon').get();
-    if(snap.exists){
-      st.textContent = '✓ Connected! Found suppliers/amazon document.';
-    } else {
-      st.textContent = '✓ Connected to Firestore (suppliers/amazon not found but connection works).';
-    }
+    const data = await firestoreRequest('GET', 'suppliers/amazon');
+    st.textContent = '✓ Connected to BuySave Firestore!';
     st.style.color = 'var(--accent2)';
   } catch(e){
-    st.textContent = '✗ ' + e.message;
-    st.style.color = 'var(--accent3)';
+    // If 404 that's still a successful connection
+    if(e.message.includes('NOT_FOUND') || e.message.includes('404')){
+      st.textContent = '✓ Connected! (suppliers/amazon not found but auth works)';
+      st.style.color = 'var(--accent2)';
+    } else {
+      st.textContent = '✗ ' + e.message;
+      st.style.color = 'var(--accent3)';
+    }
   }
 }
 
@@ -3830,79 +3878,87 @@ async function pushToShop(){
   const markup = parseFloat(document.getElementById('defaultMarkup')?.value || 30);
   const vat = parseFloat(document.getElementById('vatRate')?.value || 15);
 
-  if(!confirm(`Push ${selected.length} product${selected.length!==1?'s':''} to shop.buysave.co.za?\n\nThey will appear in your admin Products section immediately.`)) return;
+  if(!confirm(`Push ${selected.length} product${selected.length!==1?'s':''} to shop.buysave.co.za?`)) return;
 
   const bar = document.getElementById('bulkBar');
   const actionsDiv = bar.querySelector('.bulk-actions');
   const origHTML = actionsDiv.innerHTML;
-  actionsDiv.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--accent2)" id="shopPushStatus">Connecting to Firebase...</div>';
+  actionsDiv.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--accent2)" id="shopPushStatus">Authenticating...</div>';
 
   let pushed = 0, failed = 0;
 
   try {
-    const db = initFirebaseDb();
+    // Get auth token once
+    const authRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInAnonymously?key=${cfg.apiKey}`,
+      { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({returnSecureToken:true}) }
+    );
+    const authData = await authRes.json();
+    if(authData.error) throw new Error('Auth failed: ' + authData.error.message);
+    const token = authData.idToken;
+    const dbId = cfg.databaseId || '(default)';
+    const baseUrl = `https://firestore.googleapis.com/v1/projects/${cfg.projectId}/databases/${dbId}/documents/products`;
+
     const status = document.getElementById('shopPushStatus');
 
     for(const p of selected){
       try {
         status.textContent = `Pushing ${pushed+failed+1}/${selected.length}: ${p.name.substring(0,40)}...`;
 
-        const sellPrice = Math.ceil((p.price * (1 + vat/100) * (1 + markup/100)) / 10) * 10;
-        const slug = p.name.toLowerCase()
-          .replace(/[^a-z0-9]+/g,'-')
-          .replace(/(^-|-$)/g,'')
-          .substring(0,100);
-        const docId = ('esquire_' + p.sku)
-          .replace(/[\/\\\.\s]/g,'-')
-          .replace(/[^a-zA-Z0-9\-_]/g,'')
-          .substring(0,100);
+        const sellPrice = Math.ceil((p.price*(1+vat/100)*(1+markup/100))/10)*10;
+        const slug = p.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').substring(0,100);
+        const docId = ('esquire_'+p.sku).replace(/[\/\\\.\s]/g,'-').replace(/[^a-zA-Z0-9\-_]/g,'').substring(0,100);
 
-        await db.collection('products').doc(docId).set({
+        const productData = {
           name: p.name,
           sku: p.sku,
           esquireSku: p.sku,
           slug,
           supplier: 'esquire',
           origin: 'esquire-import',
-          category: p.categories || p.catTree || 'Uncategorized',
-          categories: [p.categories || 'Uncategorized'],
-          description: p.desc || p.shortDesc || p.name,
-          imageUrl: p.image || '',
-          images: p.image ? [p.image] : [],
+          category: p.categories||p.catTree||'Uncategorized',
+          categories: [p.categories||'Uncategorized'],
+          description: p.desc||p.shortDesc||p.name,
+          imageUrl: p.image||'',
+          images: p.image?[p.image]:[],
           price: sellPrice,
           costPrice: p.price,
-          inStock: p.available !== false && (p.jhb > 0 || p.available === true),
-          stock: p.jhb > 0 ? p.jhb : (p.available ? 99 : 0),
-          brand: p.brand || '',
+          inStock: p.available!==false&&(p.jhb>0||p.available===true),
+          stock: p.jhb>0?p.jhb:(p.available?99:0),
+          brand: p.brand||'',
           status: 'active',
           visible: true,
           featured: false,
-          sortOrder: Math.floor(Date.now() / 1000),
+          sortOrder: Math.floor(Date.now()/1000),
           lastSyncedAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           createdAt: new Date().toISOString(),
-        }, { merge: true });
+        };
 
+        const url = `${baseUrl}/${docId}?updateMask.fieldPaths=${Object.keys(productData).join('&updateMask.fieldPaths=')}`;
+        const res = await fetch(url, {
+          method: 'PATCH',
+          headers: { 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json' },
+          body: JSON.stringify(buildFsDoc(productData))
+        });
+
+        const data = await res.json();
+        if(data.error) throw new Error(data.error.message);
         pushed++;
       } catch(e){
-        console.error('[PushToShop] Failed', p.sku, e.message);
+        console.error('[Push]', p.sku, e.message);
         failed++;
       }
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r=>setTimeout(r,150));
     }
 
     const st = document.getElementById('shopPushStatus');
-    if(st){
-      st.textContent = `✅ Done! Pushed ${pushed} to shop.buysave.co.za${failed?' · '+failed+' failed':''}`;
-    }
-    setTimeout(()=>{
-      actionsDiv.innerHTML = origHTML;
-      clearSelection();
-    }, 4000);
+    if(st) st.textContent = `✅ Pushed ${pushed} to shop.buysave.co.za${failed?' · '+failed+' failed':''}`;
+    setTimeout(()=>{ actionsDiv.innerHTML=origHTML; clearSelection(); }, 4000);
 
   } catch(e){
     actionsDiv.innerHTML = origHTML;
-    alert('Push failed: ' + e.message);
+    alert('Push failed: '+e.message);
   }
 }
 
