@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BuySave Product Intelligence System v2</title>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" onerror="console.warn('Firebase SDK failed to load')"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" onerror="console.warn('Firestore SDK failed to load')"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -3760,34 +3760,37 @@ function saveFirebaseConfig(){
 }
 
 function initFirebaseDb(){
+  if(typeof firebase === 'undefined') throw new Error('Firebase SDK not loaded. Check your internet connection and refresh.');
   const cfg = getFirebaseConfig();
   if(!cfg.apiKey) throw new Error('No Firebase API key. Add it in Settings → BuySave Shop.');
   if(!cfg.projectId) throw new Error('No Project ID. Add it in Settings → BuySave Shop.');
 
-  // Initialise or reuse Firebase app
   try {
-    if(firebase.apps.length === 0){
+    if(!firebase.apps.length){
       _fbApp = firebase.initializeApp({
         apiKey: cfg.apiKey,
         projectId: cfg.projectId,
         appId: '1:000000000000:web:000000000000'
       });
     } else {
-      _fbApp = firebase.apps[0];
+      // Check if config changed — if so, delete and reinit
+      const existingApp = firebase.apps[0];
+      if(existingApp.options.apiKey !== cfg.apiKey || existingApp.options.projectId !== cfg.projectId){
+        existingApp.delete().catch(()=>{});
+        _fbApp = firebase.initializeApp({
+          apiKey: cfg.apiKey,
+          projectId: cfg.projectId,
+          appId: '1:000000000000:web:000000000000'
+        });
+      } else {
+        _fbApp = existingApp;
+      }
     }
   } catch(e){
-    _fbApp = firebase.app();
+    _fbApp = firebase.apps[0] || firebase.app();
   }
 
-  // Get Firestore with optional database ID
-  if(cfg.databaseId && cfg.databaseId.trim()){
-    _fbDb = firebase.firestore(_fbApp);
-    // Point to named database
-    _fbDb.settings({ databaseId: cfg.databaseId.trim() });
-  } else {
-    _fbDb = firebase.firestore(_fbApp);
-  }
-
+  _fbDb = firebase.firestore(_fbApp);
   return _fbDb;
 }
 
