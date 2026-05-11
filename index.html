@@ -229,6 +229,7 @@ select option{background:var(--surface2)}
     <div class="bulk-info" id="bulkInfo">0 selected</div>
     <div class="bulk-actions">
       <button class="btn btn-wix btn-sm" onclick="openPublishModal()">🚀 Publish to Wix</button>
+      <button class="btn btn-success btn-sm" onclick="pushToShop()">🏪 Push to BuySave Shop</button>
       <button class="btn btn-success btn-sm" onclick="bulkWatch()">👁 Add to Watchlist</button>
       <button class="btn btn-primary btn-sm" onclick="exportSel()">⬇ Export CSV</button>
       <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕ Clear</button>
@@ -1082,6 +1083,24 @@ select option{background:var(--surface2)}
       <button class="btn btn-primary btn-sm" onclick="loadFeed()">Reload Feeds</button>
     </div>
   </div>
+</div>
+  <div style="background:var(--surface);border:1px solid var(--border2);padding:20px">
+  <div class="flabel" style="margin-bottom:12px;color:var(--accent2)">🏪 BuySave Shop (Firestore)</div>
+  <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:12px;line-height:1.8">
+    Push products directly to your shop's Firestore database.<br>
+    Get your API key from Firebase Console → Project Settings → Web API Key
+  </div>
+  <div class="mfield"><label>Firebase API Key</label>
+    <input type="password" id="fbApiKey" placeholder="AIzaSy..."></div>
+  <div class="mfield"><label>Firebase Project ID</label>
+    <input type="text" id="fbProjectId" placeholder="gsc-mcp-490516"></div>
+  <div class="mfield"><label>Firestore Database ID</label>
+    <input type="text" id="fbDatabaseId" placeholder="ai-studio-c3d40a15-... (leave blank for default)"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-success btn-sm" onclick="saveFirebaseConfig()">Save Config</button>
+    <button class="btn btn-ghost btn-sm" onclick="testFirebaseConfig()">Test Connection</button>
+  </div>
+  <div id="fbStatus" style="font-family:var(--mono);font-size:10px;margin-top:10px;color:var(--muted)"></div>
 </div>
 
 <!-- PUBLISH MODAL -->
@@ -3711,6 +3730,207 @@ async function fetchManualCompUrl(itemIdx, compKey){
   }catch(e){
     status.textContent = 'Error: '+e.message;
     status.style.color = 'var(--accent3)';
+  }
+}
+  // ============================================================
+// PUSH TO BUYSAVE SHOP (Firestore REST API)
+// ============================================================
+
+function getFirebaseConfig(){
+  return {
+    apiKey: document.getElementById('fbApiKey')?.value?.trim() || localStorage.getItem('bs_fb_key') || '',
+    projectId: document.getElementById('fbProjectId')?.value?.trim() || localStorage.getItem('bs_fb_project') || 'gsc-mcp-490516',
+    databaseId: document.getElementById('fbDatabaseId')?.value?.trim() || localStorage.getItem('bs_fb_db') || '',
+  };
+}
+
+function saveFirebaseConfig(){
+  const cfg = getFirebaseConfig();
+  localStorage.setItem('bs_fb_key', cfg.apiKey);
+  localStorage.setItem('bs_fb_project', cfg.projectId);
+  localStorage.setItem('bs_fb_db', cfg.databaseId);
+  document.getElementById('fbStatus').textContent = '✓ Saved';
+  document.getElementById('fbStatus').style.color = 'var(--accent2)';
+  setTimeout(()=>{ document.getElementById('fbStatus').textContent=''; }, 2000);
+}
+
+async function getFirestoreToken(){
+  const cfg = getFirebaseConfig();
+  if(!cfg.apiKey) throw new Error('No Firebase API key. Add it in Settings → BuySave Shop.');
+  // Sign in anonymously to get a token
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInAnonymously?key=${cfg.apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ returnSecureToken: true })
+  });
+  const data = await res.json();
+  if(data.error) throw new Error('Firebase auth failed: ' + data.error.message);
+  return data.idToken;
+}
+
+async function testFirebaseConfig(){
+  const status = document.getElementById('fbStatus');
+  status.textContent = 'Testing...';
+  status.style.color = 'var(--muted2)';
+  try {
+    const cfg = getFirebaseConfig();
+    const token = await getFirestoreToken();
+    const dbPath = cfg.databaseId ? `/databases/${cfg.databaseId}` : '/databases/(default)';
+    const url = `https://firestore.googleapis.com/v1/projects/${cfg.projectId}${dbPath}/documents/suppliers/amazon`;
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    if(res.ok){
+      status.textContent = '✓ Connected to BuySave Firestore!';
+      status.style.color = 'var(--accent2)';
+    } else {
+      throw new Error('HTTP ' + res.status);
+    }
+  } catch(e){
+    status.textContent = '✗ ' + e.message;
+    status.style.color = 'var(--accent3)';
+  }
+}
+
+function toFirestoreValue(val){
+  if(val === null || val === undefined) return { nullValue: null };
+  if(typeof val === 'boolean') return { booleanValue: val };
+  if(typeof val === 'number') return Number.isInteger(val) ? { integerValue: String(val) } : { doubleValue: val };
+  if(typeof val === 'string') return { stringValue: val };
+  if(Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
+  if(typeof val === 'object'){
+    const fields = {};
+    for(const [k,v] of Object.entries(val)){
+      if(v !== undefined) fields[k] = toFirestoreValue(v);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+function buildFirestoreDoc(data){
+  const fields = {};
+  for(const [k,v] of Object.entries(data)){
+    if(v !== undefined) fields[k] = toFirestoreValue(v);
+  }
+  return { fields };
+}
+
+async function pushToShop(){
+  const selected = allProducts.filter(p => selectedSKUs.has(p.sku));
+  if(!selected.length){ alert('Select products first.'); return; }
+
+  const cfg = getFirebaseConfig();
+  if(!cfg.apiKey || !cfg.projectId){
+    alert('Configure BuySave Shop connection first.\nGo to Settings → BuySave Shop and add your Firebase API key.');
+    switchTab('settings');
+    return;
+  }
+
+  const markup = parseFloat(document.getElementById('defaultMarkup')?.value || 30);
+  const vat = parseFloat(document.getElementById('vatRate')?.value || 15);
+
+  if(!confirm(`Push ${selected.length} product${selected.length!==1?'s':''} to shop.buysave.co.za?\n\nThey will appear in your admin Products section immediately.`)) return;
+
+  // Show progress
+  const bar = document.getElementById('bulkBar');
+  const origHTML = bar.querySelector('.bulk-actions').innerHTML;
+  bar.querySelector('.bulk-actions').innerHTML = `
+    <div style="font-family:var(--mono);font-size:10px;color:var(--accent2)" id="shopPushStatus">
+      Authenticating with Firebase...
+    </div>`;
+
+  let pushed = 0;
+  let failed = 0;
+
+  try {
+    const token = await getFirestoreToken();
+    const dbPath = cfg.databaseId ? `/databases/${cfg.databaseId}` : '/databases/(default)';
+    const baseUrl = `https://firestore.googleapis.com/v1/projects/${cfg.projectId}${dbPath}/documents`;
+
+    const status = document.getElementById('shopPushStatus');
+
+    for(const p of selected){
+      try {
+        status.textContent = `Pushing ${pushed+1}/${selected.length}: ${p.name.substring(0,40)}...`;
+
+        // Calculate selling price with markup and VAT
+        const sellPrice = Math.ceil((p.price * (1 + vat/100) * (1 + markup/100)) / 10) * 10;
+
+        // Create slug from name
+        const slug = p.name.toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '')
+          .substring(0, 100);
+
+        // Sanitize SKU for Firestore doc ID
+        const docId = ('esquire_' + p.sku)
+          .replace(/\//g, '-')
+          .replace(/\\/g, '-')
+          .replace(/\./g, '-')
+          .replace(/\s+/g, '-')
+          .replace(/[^a-zA-Z0-9\-_]/g, '')
+          .substring(0, 100);
+
+        const productData = {
+          name: p.name,
+          sku: p.sku,
+          esquireSku: p.sku,
+          slug,
+          supplier: 'esquire',
+          origin: 'esquire-import',
+          category: p.categories || p.catTree || 'Uncategorized',
+          categories: [p.categories || 'Uncategorized'],
+          description: p.desc || p.shortDesc || p.name,
+          imageUrl: p.image || '',
+          images: p.image ? [p.image] : [],
+          price: sellPrice,
+          costPrice: p.price,
+          inStock: p.available !== false && (p.jhb > 0 || p.available === true),
+          stock: p.jhb || (p.available ? 99 : 0),
+          brand: p.brand || '',
+          status: 'active',
+          visible: true,
+          featured: false,
+          sortOrder: Math.floor(Date.now() / 1000),
+          lastSyncedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        };
+
+        const docUrl = `${baseUrl}/products/${docId}`;
+        const res = await fetch(docUrl, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(buildFirestoreDoc(productData))
+        });
+
+        if(!res.ok){
+          const err = await res.json();
+          throw new Error(err.error?.message || 'HTTP ' + res.status);
+        }
+
+        pushed++;
+      } catch(e){
+        console.error('Failed to push', p.sku, e.message);
+        failed++;
+      }
+
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    status.textContent = `✅ Done! Pushed ${pushed} products to shop.buysave.co.za${failed?` · ${failed} failed`:''}`;
+    status.style.color = 'var(--accent2)';
+
+    setTimeout(()=>{
+      bar.querySelector('.bulk-actions').innerHTML = origHTML;
+      clearSelection();
+    }, 4000);
+
+  } catch(e){
+    bar.querySelector('.bulk-actions').innerHTML = origHTML;
+    alert('Push failed: ' + e.message);
   }
 }
 </script>
