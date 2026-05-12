@@ -3752,7 +3752,13 @@ function loadEsquireCsv(input){
 
       function cleanVal(v){
         // Strip Excel formula format: ="value" -> value
-        return (v||'').trim().replace(/^="/, '').replace(/"$/, '').trim();
+        // Handles: ="4.000045" -> 4.000045
+        //          "DCW" -> DCW
+        //          =DCW -> DCW
+        return (v||'').trim()
+          .replace(/^=?"?/, '')  // strip leading =" or = or "
+          .replace(/"$/, '')      // strip trailing "
+          .trim();
       }
 
       // Skip header, parse products
@@ -3765,8 +3771,9 @@ function loadEsquireCsv(input){
         if(!sku || !name) continue;
 
         const price = Math.round((parseFloat(cleanVal(vals[4])) || 0) * 100) / 100;
-        const stock = parseInt((vals[5]||'').trim()) || 0;
+        const stock = parseInt((vals[5]||'').trim().replace(/[^0-9]/g,'')) || 0;
         const image = (vals[6]||'').trim().replace(/\r/g,'').replace(/"/g,'');
+        if(i === 1) console.log('[Esquire CSV] Sample:', {raw4: vals[4], price, raw5: vals[5], stock});
 
         const prod = {
           sku,
