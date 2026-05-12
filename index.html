@@ -179,6 +179,22 @@ select option{background:var(--surface2)}
       <button class="btn btn-ghost btn-sm" onclick="loadFeedPage()" id="loadPageBtn" title="Load next 200 products">Load Next 200</button>
       <button class="btn btn-ghost btn-sm" onclick="clearLoaded()">Clear</button>
     </div>
+    <!-- Esquire CSV upload — shown only when Esquire selected -->
+    <div id="esquireCsvWrap" style="display:none;margin-top:10px;padding:12px;background:var(--surface);border:1px solid var(--accent5);border-radius:4px">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--accent5);margin-bottom:8px">
+        ⚠ Esquire API is only accessible from your browser. Download the feed first, then upload it here.<br>
+        <a href="https://api.esquire.co.za/api/DataFeed?u=sales@buysave.co.za&p=l4Sb4GXIf$v76QnA&t=csv&m=0&o=ascending&r=RoundNone&rm=0&min=0" 
+           target="_blank" style="color:var(--accent2)">📥 Click here to download the Esquire CSV feed</a>
+        &nbsp;→ then upload it below
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="btn btn-primary btn-sm" style="cursor:pointer">
+          📁 Upload Esquire CSV
+          <input type="file" id="esquireCsvInput" accept=".csv" style="display:none" onchange="loadEsquireCsv(this)">
+        </label>
+        <span id="esquireCsvStatus" style="font-family:var(--mono);font-size:9px;color:var(--muted)"></span>
+      </div>
+    </div>
     <div id="lookupStatus" style="font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:8px"></div>
     <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:6px;line-height:1.8">
       Select supplier → enter SKU or name → Search. Or Load Next 200 to browse a batch.
@@ -3694,6 +3710,108 @@ function removeComp(idx){
   saveComp();
   renderCompGrid();
   updateCompTabCount();
+}
+
+// Show/hide Esquire CSV upload based on supplier selection
+document.addEventListener('DOMContentLoaded', ()=>{
+  const sel = document.getElementById('supplierSelect');
+  if(sel) sel.addEventListener('change', ()=>{
+    const wrap = document.getElementById('esquireCsvWrap');
+    if(wrap) wrap.style.display = sel.value === 'esquire' ? 'block' : 'none';
+  });
+});
+
+function loadEsquireCsv(input){
+  const file = input.files[0];
+  if(!file) return;
+  const status = document.getElementById('esquireCsvStatus');
+  status.textContent = 'Parsing...';
+  status.style.color = 'var(--muted2)';
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const text = e.target.result;
+      const lines = text.split('\n').filter(l => l.trim());
+      if(lines.length < 2){ throw new Error('CSV appears empty'); }
+
+      // Parse CSV properly handling quoted fields
+      function parseCSVLine(line){
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for(let i = 0; i < line.length; i++){
+          const ch = line[i];
+          if(ch === '"') { inQuotes = !inQuotes; }
+          else if(ch === ',' && !inQuotes){ result.push(current); current = ''; }
+          else { current += ch; }
+        }
+        result.push(current);
+        return result;
+      }
+
+      function cleanVal(v){
+        // Strip Excel formula format: ="value" -> value
+        return (v||'').trim().replace(/^="/, '').replace(/"$/, '').trim();
+      }
+
+      // Skip header, parse products
+      let added = 0;
+      for(let i = 1; i < lines.length; i++){
+        const vals = parseCSVLine(lines[i]);
+        if(vals.length < 6) continue;
+        const sku = cleanVal(vals[1]);
+        const name = (vals[0]||'').trim();
+        if(!sku || !name) continue;
+
+        const price = parseFloat(cleanVal(vals[4])) || 0;
+        const stock = parseInt((vals[5]||'').trim()) || 0;
+        const image = (vals[6]||'').trim().replace(/\r/g,'');
+
+        const prod = {
+          sku,
+          name,
+          category: (vals[2]||'').trim(),
+          desc: (vals[3]||'').trim().replace(/^"|"$/g,''),
+          shortDesc: (vals[3]||'').trim().replace(/^"|"$/g,'').substring(0,150),
+          price,
+          jhb: stock,
+          cpt: 0,
+          dbn: 0,
+          available: stock > 0,
+          image,
+          brand: '',
+          catTree: (vals[2]||'').trim(),
+          categories: (vals[2]||'').trim(),
+          source: 'esquire',
+          esquireStock: stock > 0 ? 'In Stock' : 'Out of Stock',
+        };
+
+        if(!allProducts.find(x => x.sku === prod.sku)){
+          allProducts.push(prod);
+          added++;
+        }
+      }
+
+      filteredProducts = [...allProducts];
+      updateStats();
+      buildBrandPills();
+      buildCatPills();
+      document.getElementById('brandPillsWrap').style.display = 'block';
+      document.getElementById('catPillsWrap').style.display = 'block';
+      filterProducts();
+      document.getElementById('feedStatusText').textContent = 'Esquire Feed Active';
+
+      status.textContent = `✓ Loaded ${added} products from CSV (${allProducts.length} total)`;
+      status.style.color = 'var(--accent2)';
+      document.getElementById('lookupStatus').textContent = `✓ Esquire CSV loaded: ${added} products. Use the filter above to search.`;
+      document.getElementById('lookupStatus').style.color = 'var(--accent2)';
+    } catch(err){
+      status.textContent = '✗ ' + err.message;
+      status.style.color = 'var(--accent3)';
+    }
+  };
+  reader.readAsText(file);
 }
 
 async function fetchManualCompUrl(itemIdx, compKey){
