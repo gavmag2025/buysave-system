@@ -1596,8 +1596,8 @@ function renderProducts(){
           ${p.eta?`<div class="schip" style="border-color:var(--accent4);color:var(--accent4)">ETA ${p.eta}</div>`:''}
         </div>
         <div class="price-row">
-          <div class="pi"><div class="pi-l">Your Cost</div><div class="pi-v cost">R${p.price.toLocaleString()}</div></div>
-          <div class="pi"><div class="pi-l">RRP incl</div><div class="pi-v rrp">R${p.rrp.toLocaleString()}</div></div>
+          <div class="pi"><div class="pi-l">Your Cost</div><div class="pi-v cost">R${(p.price||0).toLocaleString()}</div></div>
+          <div class="pi"><div class="pi-l">RRP incl</div><div class="pi-v rrp">R${(p.rrp||0).toLocaleString()}</div></div>
           <div class="pi"><div class="pi-l">Your Price</div><div class="pi-v yours">R${yp.toLocaleString()}</div></div>
         </div>
       </div>
@@ -3764,9 +3764,9 @@ function loadEsquireCsv(input){
         const name = (vals[0]||'').trim();
         if(!sku || !name) continue;
 
-        const price = parseFloat(cleanVal(vals[4])) || 0;
+        const price = Math.round((parseFloat(cleanVal(vals[4])) || 0) * 100) / 100;
         const stock = parseInt((vals[5]||'').trim()) || 0;
-        const image = (vals[6]||'').trim().replace(/\r/g,'');
+        const image = (vals[6]||'').trim().replace(/\r/g,'').replace(/"/g,'');
 
         const prod = {
           sku,
